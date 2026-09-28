@@ -1,0 +1,16 @@
+# Compiled object files
+*.o
+
+# Executable files
+p2p-file-sharing
+p2p
+
+# Build directories
+build/
+
+# Temporary files
+*.tmp
+*.log
+
+# VS Code
+.vscode/
