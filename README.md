@@ -77,14 +77,7 @@ If a peer becomes unavailable or a piece is corrupted, the system attempts to re
 
 The goal of this project is to demonstrate the practical implementation of **P2P networking, concurrent communication, file transfer, data integrity, and fault tolerance** using C.
 
-## Status
-
-🚧 **Under Development**
-
----
-
 ### Computer Networks Mini Project
 
 **P2P File Sharing System**
 Built with C • Socket Programming • pthread • SHA-256
-
