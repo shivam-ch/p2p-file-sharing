@@ -79,7 +79,7 @@ int receive_message(
     int socket_fd,
     MessageType *type,
     void *payload,
-    uint32_t payload_size
+    uint32_t *payload_size
 )
 {
     MessageHeader header;
@@ -95,12 +95,16 @@ int receive_message(
         *type = (MessageType)header.type;
     }
 
-    if (header.payload_size != payload_size) {
-        return -1;
+    if (payload_size != NULL) {
+        *payload_size = header.payload_size;
     }
 
-    if (payload_size > 0 && payload != NULL) {
-        if (receive_all(socket_fd, payload, payload_size) < 0) {
+    if (header.payload_size > 0 && payload != NULL) {
+        if (receive_all(
+                socket_fd,
+                payload,
+                header.payload_size
+            ) < 0) {
             return -1;
         }
     }

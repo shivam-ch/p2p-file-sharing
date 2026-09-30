@@ -35,7 +35,7 @@ int receive_message(
     int socket_fd,
     MessageType *type,
     void *payload,
-    uint32_t payload_size
+    uint32_t *payload_size
 );
 
 #endif
