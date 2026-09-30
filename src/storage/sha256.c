@@ -1,7 +1,11 @@
+#define _FILE_OFFSET_BITS 64
+#define _POSIX_C_SOURCE 200809L
+
 #include "sha256.h"
 
-#include <openssl/sha.h>
+#include <openssl/evp.h>
 #include <stdio.h>
+#include <sys/types.h>
 
 #define SHA256_BUFFER_SIZE (64 * 1024)
 
@@ -13,8 +17,9 @@ int calculate_sha256(
 )
 {
     FILE *file;
-    SHA256_CTX context;
+    EVP_MD_CTX *context;
     unsigned char buffer[SHA256_BUFFER_SIZE];
+    unsigned int hash_length = 0;
 
     file = fopen(filename, "rb");
 
@@ -27,7 +32,15 @@ int calculate_sha256(
         return -1;
     }
 
-    if (SHA256_Init(&context) != 1) {
+    context = EVP_MD_CTX_new();
+
+    if (context == NULL) {
+        fclose(file);
+        return -1;
+    }
+
+    if (EVP_DigestInit_ex(context, EVP_sha256(), NULL) != 1) {
+        EVP_MD_CTX_free(context);
         fclose(file);
         return -1;
     }
@@ -49,11 +62,13 @@ int calculate_sha256(
         );
 
         if (bytes_read != bytes_to_read) {
+            EVP_MD_CTX_free(context);
             fclose(file);
             return -1;
         }
 
-        if (SHA256_Update(&context, buffer, bytes_read) != 1) {
+        if (EVP_DigestUpdate(context, buffer, bytes_read) != 1) {
+            EVP_MD_CTX_free(context);
             fclose(file);
             return -1;
         }
@@ -61,12 +76,18 @@ int calculate_sha256(
         size -= bytes_read;
     }
 
-    if (SHA256_Final(hash, &context) != 1) {
+    if (EVP_DigestFinal_ex(context, hash, &hash_length) != 1) {
+        EVP_MD_CTX_free(context);
         fclose(file);
         return -1;
     }
 
+    EVP_MD_CTX_free(context);
     fclose(file);
+
+    if (hash_length != SHA256_HASH_SIZE) {
+        return -1;
+    }
 
     return 0;
 }
