@@ -4,13 +4,14 @@
 #include <pthread.h>
 #include "../common/types.h"
 
-typedef enum 
+typedef enum
 {
-    PIECE_MISSING = 0,
-    PIECE_DOWNLOADING,
-    PIECE_COMPLETED,
-    PIECE_FAILED
+    TRANSFER_MISSING = 0,
+    TRANSFER_DOWNLOADING,
+    TRANSFER_COMPLETED,
+    TRANSFER_FAILED
 } PieceState;
+
 typedef struct 
 {
     PieceInfo info;
@@ -37,6 +38,29 @@ int start_downloads(
     DownloadTask *tasks,
     size_t task_count,
     size_t thread_count
+);
+
+int serialize_piece_request(
+    const PieceRequest *request,
+    unsigned char *buffer,
+    uint32_t buffer_size,
+    uint32_t *output_size
+);
+
+int deserialize_piece_request(
+    const unsigned char *buffer,
+    uint32_t buffer_size,
+    PieceRequest *request
+);
+
+int send_piece_request(
+    int socket_fd,
+    const PieceRequest *request
+);
+
+int receive_piece_request(
+    int socket_fd,
+    PieceRequest *request
 );
 
 #endif

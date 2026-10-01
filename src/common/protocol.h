@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define MAX_PAYLOAD_SIZE 65536
 typedef enum {
     MSG_HELLO = 1,
     MSG_PEER_LIST,
@@ -35,7 +36,7 @@ int receive_message(
     int socket_fd,
     MessageType *type,
     void *payload,
+    uint32_t payload_capacity,
     uint32_t *payload_size
 );
-
 #endif

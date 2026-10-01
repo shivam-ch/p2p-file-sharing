@@ -79,6 +79,7 @@ int receive_message(
     int socket_fd,
     MessageType *type,
     void *payload,
+    uint32_t payload_capacity,
     uint32_t *payload_size
 )
 {
@@ -91,6 +92,14 @@ int receive_message(
     header.type = ntohl(header.type);
     header.payload_size = ntohl(header.payload_size);
 
+    if (header.payload_size > MAX_PAYLOAD_SIZE) {
+        return -1;
+    }
+
+    if (header.payload_size > payload_capacity) {
+        return -1;
+    }
+
     if (type != NULL) {
         *type = (MessageType)header.type;
     }
@@ -99,7 +108,12 @@ int receive_message(
         *payload_size = header.payload_size;
     }
 
-    if (header.payload_size > 0 && payload != NULL) {
+    if (header.payload_size > 0) {
+
+        if (payload == NULL) {
+            return -1;
+        }
+
         if (receive_all(
                 socket_fd,
                 payload,

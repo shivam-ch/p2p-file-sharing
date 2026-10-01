@@ -37,11 +37,12 @@ int main(void)
     printf("Peer B connected successfully.\n");
 
     if (receive_message(
-            peer_fd,
-            &message_type,
-            received_message,
-            &received_size
-        ) < 0) {
+        peer_fd,
+        &message_type,
+        received_message,
+        sizeof(received_message),
+        &received_size
+    ) < 0) {
         printf("Failed to receive HELLO.\n");
         close(peer_fd);
         close(server_fd);

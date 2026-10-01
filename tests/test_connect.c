@@ -38,10 +38,11 @@ int main(void)
     printf("Peer B sent HELLO.\n");
 
     if (receive_message(
-            peer_fd,
-            &message_type,
-            received_message,
-            &received_size
+        peer_fd,
+        &message_type,
+        received_message,
+        sizeof(received_message),
+        &received_size
         ) < 0) {
         printf("Failed to receive response.\n");
         close(peer_fd);
