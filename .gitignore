@@ -16,3 +16,4 @@ build/
 .vscode/
 
 tests/test_sha256
+tests/test_piece

@@ -5,11 +5,18 @@
 
 #define SHA256_HASH_SIZE 32
 
+typedef enum {
+    PIECE_MISSING = 0,
+    PIECE_DOWNLOADING,
+    PIECE_AVAILABLE
+} PieceStatus;
+
 typedef struct {
     uint32_t piece_id;
     uint64_t offset;
     uint64_t size;
     unsigned char hash[SHA256_HASH_SIZE];
+    PieceStatus status;
 } PieceInfo;
 
 typedef struct {
