@@ -17,3 +17,9 @@ build/
 
 tests/test_sha256
 tests/test_piece
+
+# Test executables
+tests/test_protocol
+tests/test_file_io
+tests/test_piece_block
+tests/test_transfer
