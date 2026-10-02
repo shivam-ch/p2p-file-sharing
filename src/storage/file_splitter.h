@@ -15,6 +15,13 @@ int split_file(
     size_t *piece_count
 );
 
+int reconstruct_file(
+    const char *output_path,
+    const char *pieces_dir,
+    const PieceInfo *pieces,
+    size_t piece_count
+);
+
 void free_pieces(
     PieceInfo *pieces
 );

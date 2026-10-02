@@ -285,6 +285,133 @@ int split_file(
 
     return 0;
 }
+int reconstruct_file(
+    const char *output_path,
+    const char *pieces_dir,
+    const PieceInfo *pieces,
+    size_t piece_count
+)
+{
+    if (output_path == NULL ||
+        pieces_dir == NULL ||
+        pieces == NULL ||
+        piece_count == 0) {
+
+        return -1;
+    }
+
+    FILE *output = fopen(output_path, "wb");
+
+    if (output == NULL) {
+        return -1;
+    }
+
+    const size_t buffer_size = 1024 * 1024;
+
+    unsigned char *buffer = malloc(buffer_size);
+
+    if (buffer == NULL) {
+        fclose(output);
+        return -1;
+    }
+
+    for (size_t i = 0; i < piece_count; i++) {
+
+        /*
+         * Reconstruction must follow piece ID order.
+         */
+        if (pieces[i].piece_id != i) {
+            free(buffer);
+            fclose(output);
+            return -1;
+        }
+
+        /*
+         * Only available pieces can be reconstructed.
+         */
+        if (!piece_is_available(&pieces[i])) {
+            free(buffer);
+            fclose(output);
+            return -1;
+        }
+
+        char piece_path[1024];
+
+        int written = snprintf(
+            piece_path,
+            sizeof(piece_path),
+            "%s/piece_%u",
+            pieces_dir,
+            pieces[i].piece_id
+        );
+
+        if (written < 0 ||
+            (size_t)written >= sizeof(piece_path)) {
+
+            free(buffer);
+            fclose(output);
+            return -1;
+        }
+
+        FILE *piece_file = fopen(piece_path, "rb");
+
+        if (piece_file == NULL) {
+            free(buffer);
+            fclose(output);
+            return -1;
+        }
+
+        uint64_t remaining = pieces[i].size;
+
+        while (remaining > 0) {
+
+            size_t bytes_to_read =
+                remaining > buffer_size
+                    ? buffer_size
+                    : (size_t)remaining;
+
+            size_t bytes_read = fread(
+                buffer,
+                1,
+                bytes_to_read,
+                piece_file
+            );
+
+            if (bytes_read != bytes_to_read) {
+
+                fclose(piece_file);
+                free(buffer);
+                fclose(output);
+                return -1;
+            }
+
+            if (fwrite(
+                    buffer,
+                    1,
+                    bytes_read,
+                    output
+                ) != bytes_read) {
+
+                fclose(piece_file);
+                free(buffer);
+                fclose(output);
+                return -1;
+            }
+
+            remaining -= bytes_read;
+        }
+
+        fclose(piece_file);
+    }
+
+    free(buffer);
+
+    if (fclose(output) != 0) {
+        return -1;
+    }
+
+    return 0;
+}
 
 void free_pieces(
     PieceInfo *pieces

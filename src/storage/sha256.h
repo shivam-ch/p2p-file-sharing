@@ -11,5 +11,10 @@ int calculate_sha256(
     uint64_t size,
     unsigned char hash[SHA256_HASH_SIZE]
 );
-
+int verify_sha256(
+    const char *filename,
+    uint64_t offset,
+    uint64_t size,
+    const unsigned char expected_hash[SHA256_HASH_SIZE]
+);
 #endif
