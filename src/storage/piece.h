@@ -1,6 +1,7 @@
 #ifndef PIECE_H
 #define PIECE_H
 
+#include <stddef.h>
 #include "../common/types.h"
 
 void piece_init(
@@ -22,5 +23,10 @@ PieceStatus piece_get_status(
 int piece_is_available(
     const PieceInfo *piece
 );
-
+int piece_store(
+    const char *pieces_dir,
+    PieceInfo *piece,
+    const unsigned char *data,
+    size_t data_size
+);
 #endif

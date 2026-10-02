@@ -1,5 +1,11 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "piece.h"
-#include <stddef.h>
+#include "sha256.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
 
 void piece_init(
     PieceInfo *piece,
@@ -50,4 +56,97 @@ int piece_is_available(
     }
 
     return piece->status == PIECE_AVAILABLE;
+}
+
+static int ensure_directory(
+    const char *path
+)
+{
+    struct stat st;
+
+    if (path == NULL) {
+        return -1;
+    }
+
+    if (stat(path, &st) == 0) {
+        return S_ISDIR(st.st_mode) ? 0 : -1;
+    }
+
+    if (mkdir(path, 0755) != 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int piece_store(
+    const char *pieces_dir,
+    PieceInfo *piece,
+    const unsigned char *data,
+    size_t data_size
+)
+{
+    char piece_path[1024];
+    FILE *file;
+
+    if (pieces_dir == NULL ||
+        piece == NULL ||
+        data == NULL) {
+        return -1;
+    }
+
+    if (data_size != piece->size) {
+        return -1;
+    }
+
+    if (ensure_directory(pieces_dir) != 0) {
+        return -1;
+    }
+
+    int written = snprintf(
+        piece_path,
+        sizeof(piece_path),
+        "%s/piece_%u",
+        pieces_dir,
+        piece->piece_id
+    );
+
+    if (written < 0 ||
+        (size_t)written >= sizeof(piece_path)) {
+        return -1;
+    }
+
+    file = fopen(piece_path, "wb");
+
+    if (file == NULL) {
+        return -1;
+    }
+
+    if (fwrite(data, 1, data_size, file) != data_size) {
+        fclose(file);
+        remove(piece_path);
+        return -1;
+    }
+
+    if (fclose(file) != 0) {
+        remove(piece_path);
+        return -1;
+    }
+
+    int verification = verify_sha256(
+        piece_path,
+        0,
+        piece->size,
+        piece->hash
+    );
+
+    if (verification != 1) {
+        piece->status = PIECE_MISSING;
+        remove(piece_path);
+        return -1;
+    }
+
+    piece->status = PIECE_AVAILABLE;
+
+    return 0;
 }
