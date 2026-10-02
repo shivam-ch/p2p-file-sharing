@@ -1,10 +1,18 @@
+#define _POSIX_C_SOURCE 200809L
 #include "transfer.h"
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+
 #include "../common/protocol.h"
 #include "../storage/piece.h"
+#include "../storage/file_io.h"
+#include "../storage/sha256.h"
+
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
 
 static uint64_t host_to_network_u64(uint64_t value)
 {
@@ -29,9 +37,9 @@ static uint64_t network_to_host_u64(uint64_t value)
 int download_piece(DownloadTask *task)
 {
     PieceRequest request;
-    unsigned char buffer[MAX_PAYLOAD_SIZE];
-    MessageType message_type;
-    uint32_t payload_size;
+    unsigned char data[MAX_PIECE_BLOCK_DATA];
+    char piece_path[1024];
+    uint64_t received = 0;
 
     if (task == NULL ||
         task->piece == NULL ||
@@ -40,10 +48,34 @@ int download_piece(DownloadTask *task)
         return -1;
     }
 
-    if (task->piece->info.size == 0 ||
-        task->piece->info.size > MAX_PAYLOAD_SIZE) {
+    if (task->piece->info.size == 0) {
         return -1;
     }
+
+    /*
+     * Create the pieces directory if it does not exist.
+     */
+    if (mkdir(task->pieces_dir, 0755) != 0) {
+        struct stat st;
+
+        if (stat(task->pieces_dir, &st) != 0 ||
+            !S_ISDIR(st.st_mode)) {
+            return -1;
+        }
+    }
+
+    snprintf(
+        piece_path,
+        sizeof(piece_path),
+        "%s/piece_%u",
+        task->pieces_dir,
+        task->piece->info.piece_id
+    );
+
+    /*
+     * Remove an old partial copy before starting again.
+     */
+    remove(piece_path);
 
     request.piece_id = task->piece->info.piece_id;
     request.offset = task->piece->info.offset;
@@ -56,29 +88,83 @@ int download_piece(DownloadTask *task)
         return -1;
     }
 
-    if (receive_message(
-            task->socket_fd,
-            &message_type,
-            buffer,
-            sizeof(buffer),
-            &payload_size
-        ) != 0) {
+    while (received < request.size) {
+        PieceBlock block;
+        uint32_t expected_size;
+        uint64_t remaining;
+
+        remaining = request.size - received;
+
+        expected_size =
+            remaining > MAX_PIECE_BLOCK_DATA
+                ? MAX_PIECE_BLOCK_DATA
+                : (uint32_t)remaining;
+
+        if (receive_piece_block(
+                task->socket_fd,
+                &block,
+                data,
+                sizeof(data)
+            ) != 0) {
+            remove(piece_path);
+            return -1;
+        }
+
+        /*
+         * Make sure the block belongs to the requested piece.
+         */
+        if (block.piece_id != request.piece_id) {
+            remove(piece_path);
+            return -1;
+        }
+
+        /*
+         * Blocks must arrive in order for this simple
+         * piece reconstruction implementation.
+         */
+        if (block.offset != request.offset + received) {
+            remove(piece_path);
+            return -1;
+        }
+
+        if (block.data_size == 0 ||
+            block.data_size > expected_size) {
+            remove(piece_path);
+            return -1;
+        }
+
+        /*
+         * Piece files are stored from offset 0.
+         * The network block offset is the global file offset,
+         * so convert it to an offset relative to this piece.
+         */
+        if (write_piece_block(
+                piece_path,
+                received,
+                block.data_size,
+                data
+            ) != 0) {
+            remove(piece_path);
+            return -1;
+        }
+
+        received += block.data_size;
+    }
+
+    /*
+     * Verify the complete reconstructed piece.
+     */
+    if (verify_sha256(
+            piece_path,
+            0,
+            request.size,
+            task->piece->info.hash
+        ) != 1) {
+        remove(piece_path);
         return -1;
     }
 
-    if (message_type != MSG_PIECE_RESPONSE ||
-        payload_size != request.size) {
-        return -1;
-    }
-
-    if (piece_store(
-            task->pieces_dir,
-            &task->piece->info,
-            buffer,
-            payload_size
-        ) != 0) {
-        return -1;
-    }
+    task->piece->info.status = PIECE_AVAILABLE;
 
     return 0;
 }
@@ -121,7 +207,7 @@ static void *download_worker_thread(void *arg)
 void *upload_worker(void *arg)
 {
     UploadTask *task = arg;
-    unsigned char buffer[MAX_PAYLOAD_SIZE];
+    unsigned char data[MAX_PIECE_BLOCK_DATA];
 
     if (task == NULL ||
         task->socket_fd < 0 ||
@@ -131,7 +217,6 @@ void *upload_worker(void *arg)
 
     while (1) {
         PieceRequest request;
-        ssize_t bytes_read;
 
         if (receive_piece_request(
                 task->socket_fd,
@@ -140,30 +225,47 @@ void *upload_worker(void *arg)
             break;
         }
 
-        if (request.size == 0 ||
-            request.size > MAX_PAYLOAD_SIZE) {
+        if (request.size == 0) {
             break;
         }
 
-        bytes_read = pread(
-            task->file_fd,
-            buffer,
-            request.size,
-            (off_t)request.offset
-        );
+        uint64_t sent = 0;
 
-        if (bytes_read < 0 ||
-            (uint64_t)bytes_read != request.size) {
-            break;
-        }
+        while (sent < request.size) {
+            uint64_t remaining = request.size - sent;
 
-        if (send_message(
-                task->socket_fd,
-                MSG_PIECE_RESPONSE,
-                buffer,
-                (uint32_t)bytes_read
-            ) != 0) {
-            break;
+            uint32_t block_size =
+                remaining > MAX_PIECE_BLOCK_DATA
+                    ? MAX_PIECE_BLOCK_DATA
+                    : (uint32_t)remaining;
+
+            ssize_t bytes_read = pread(
+                task->file_fd,
+                data,
+                block_size,
+                (off_t)(request.offset + sent)
+            );
+
+            if (bytes_read < 0 ||
+                (uint32_t)bytes_read != block_size) {
+                return NULL;
+            }
+
+            PieceBlock block;
+
+            block.piece_id = request.piece_id;
+            block.offset = request.offset + sent;
+            block.data_size = block_size;
+
+            if (send_piece_block(
+                    task->socket_fd,
+                    &block,
+                    data
+                ) != 0) {
+                return NULL;
+            }
+
+            sent += block_size;
         }
     }
 
@@ -392,5 +494,205 @@ int receive_piece_request(
         buffer,
         payload_size,
         request
+    );
+}
+int serialize_piece_block(
+    const PieceBlock *block,
+    const unsigned char *data,
+    unsigned char *buffer,
+    uint32_t buffer_size,
+    uint32_t *output_size
+)
+{
+    uint32_t network_piece_id;
+    uint64_t network_offset;
+    uint32_t network_data_size;
+
+    if (block == NULL ||
+        data == NULL ||
+        buffer == NULL ||
+        output_size == NULL) {
+        return -1;
+    }
+
+    if (block->data_size > MAX_PIECE_BLOCK_DATA) {
+        return -1;
+    }
+
+    if (buffer_size < PIECE_BLOCK_METADATA_SIZE + block->data_size) {
+        return -1;
+    }
+
+    network_piece_id = htonl(block->piece_id);
+    network_offset = host_to_network_u64(block->offset);
+    network_data_size = htonl(block->data_size);
+
+    memcpy(buffer, &network_piece_id, 4);
+    memcpy(buffer + 4, &network_offset, 8);
+    memcpy(buffer + 12, &network_data_size, 4);
+
+    memcpy(
+        buffer + PIECE_BLOCK_METADATA_SIZE,
+        data,
+        block->data_size
+    );
+
+    *output_size = PIECE_BLOCK_METADATA_SIZE + block->data_size;
+
+    return 0;
+}
+int deserialize_piece_block(
+    const unsigned char *buffer,
+    uint32_t buffer_size,
+    PieceBlock *block,
+    unsigned char *data,
+    uint32_t data_capacity
+)
+{
+    uint32_t network_piece_id;
+    uint64_t network_offset;
+    uint32_t network_data_size;
+
+    if (buffer == NULL ||
+        block == NULL ||
+        data == NULL) {
+        return -1;
+    }
+
+    if (buffer_size < PIECE_BLOCK_METADATA_SIZE) {
+        return -1;
+    }
+
+    memcpy(&network_piece_id, buffer, 4);
+    memcpy(&network_offset, buffer + 4, 8);
+    memcpy(&network_data_size, buffer + 12, 4);
+
+    block->piece_id = ntohl(network_piece_id);
+    block->offset = network_to_host_u64(network_offset);
+    block->data_size = ntohl(network_data_size);
+
+    if (block->data_size > MAX_PIECE_BLOCK_DATA) {
+        return -1;
+    }
+
+    if (buffer_size !=
+        PIECE_BLOCK_METADATA_SIZE + block->data_size) {
+        return -1;
+    }
+
+    if (block->data_size > data_capacity) {
+        return -1;
+    }
+
+    memcpy(
+        data,
+        buffer + PIECE_BLOCK_METADATA_SIZE,
+        block->data_size
+    );
+
+    return 0;
+}
+int send_piece_block(
+    int socket_fd,
+    const PieceBlock *block,
+    const unsigned char *data
+)
+{
+    unsigned char buffer[MAX_PAYLOAD_SIZE];
+    uint32_t payload_size;
+
+    if (block == NULL || data == NULL) {
+        return -1;
+    }
+
+    if (serialize_piece_block(
+            block,
+            data,
+            buffer,
+            sizeof(buffer),
+            &payload_size
+        ) != 0) {
+        return -1;
+    }
+
+    return send_message(
+        socket_fd,
+        MSG_PIECE_RESPONSE,
+        buffer,
+        payload_size
+    );
+}
+int receive_piece_block(
+    int socket_fd,
+    PieceBlock *block,
+    unsigned char *data,
+    uint32_t data_capacity
+)
+{
+    unsigned char buffer[MAX_PAYLOAD_SIZE];
+    MessageType message_type;
+    uint32_t payload_size;
+
+    if (block == NULL || data == NULL) {
+        return -1;
+    }
+
+    if (receive_message(
+            socket_fd,
+            &message_type,
+            buffer,
+            sizeof(buffer),
+            &payload_size
+        ) != 0) {
+        return -1;
+    }
+
+    if (message_type != MSG_PIECE_RESPONSE) {
+        return -1;
+    }
+
+    return deserialize_piece_block(
+        buffer,
+        payload_size,
+        block,
+        data,
+        data_capacity
+    );
+}
+int upload_piece_block(
+    int socket_fd,
+    const char *file_path,
+    const PieceRequest *request
+)
+{
+    unsigned char data[MAX_PIECE_BLOCK_DATA];
+    PieceBlock block;
+
+    if (file_path == NULL || request == NULL) {
+        return -1;
+    }
+
+    if (request->size == 0 ||
+        request->size > MAX_PIECE_BLOCK_DATA) {
+        return -1;
+    }
+
+    block.piece_id = request->piece_id;
+    block.offset = request->offset;
+    block.data_size = (uint32_t)request->size;
+
+    if (read_piece_block(
+            file_path,
+            request->offset,
+            block.data_size,
+            data
+        ) != 0) {
+        return -1;
+    }
+
+    return send_piece_block(
+        socket_fd,
+        &block,
+        data
     );
 }
