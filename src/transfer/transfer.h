@@ -1,7 +1,10 @@
 #ifndef TRANSFER_H
 #define TRANSFER_H
+
 #include <stdint.h>
+#include <stddef.h>
 #include <pthread.h>
+
 #include "../common/types.h"
 
 typedef enum
@@ -12,28 +15,39 @@ typedef enum
     TRANSFER_FAILED
 } PieceState;
 
-typedef struct 
+typedef struct
 {
     PieceInfo info;
     PieceState state;
     pthread_mutex_t mutex;
-} 
-TransferPiece;
+} TransferPiece;
+
 typedef struct
- {
+{
     int socket_fd;
+    const char *pieces_dir;
     uint32_t piece_id;
     TransferPiece *piece;
-} 
-DownloadTask;
-typedef struct {
+    int result;
+} DownloadTask;
+
+typedef struct
+{
+    int socket_fd;
+    int file_fd;
+} UploadTask;
+
+typedef struct
+{
     uint32_t piece_id;
     uint64_t offset;
     uint64_t size;
-} 
-PieceRequest;
+} PieceRequest;
+
 int download_piece(DownloadTask *task);
+
 void *upload_worker(void *arg);
+
 int start_downloads(
     DownloadTask *tasks,
     size_t task_count,

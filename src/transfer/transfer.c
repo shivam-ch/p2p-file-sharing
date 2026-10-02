@@ -1,8 +1,10 @@
 #include "transfer.h"
 #include <stdlib.h>
-#include <arpa/inet.h>
 #include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 #include "../common/protocol.h"
+#include "../storage/piece.h"
 
 static uint64_t host_to_network_u64(uint64_t value)
 {
@@ -24,83 +26,218 @@ static uint64_t network_to_host_u64(uint64_t value)
            ntohl(low);
 }
 
-static void *download_worker(void *arg)
-{
-    DownloadTask *task = arg;
-    if (task == NULL || task->piece == NULL) 
-    {
-        return NULL;
-    }
-    pthread_mutex_lock(&task->piece->mutex);
-    if (task->piece->state != TRANSFER_MISSING) {
-        pthread_mutex_unlock(&task->piece->mutex);
-        return NULL;
-    }
-    task->piece->state = TRANSFER_DOWNLOADING;
-    pthread_mutex_unlock(&task->piece->mutex);
-    if (download_piece(task) == 0) {
-        pthread_mutex_lock(&task->piece->mutex);
-        task->piece->state = TRANSFER_COMPLETED;
-        pthread_mutex_unlock(&task->piece->mutex);
-    }
-     else 
-    {
-        pthread_mutex_lock(&task->piece->mutex);
-        task->piece->state = TRANSFER_FAILED;
-        pthread_mutex_unlock(&task->piece->mutex);
-    }
-    return NULL;
-}
 int download_piece(DownloadTask *task)
 {
-    (void)task;
-    return -1;
+    PieceRequest request;
+    unsigned char buffer[MAX_PAYLOAD_SIZE];
+    MessageType message_type;
+    uint32_t payload_size;
+
+    if (task == NULL ||
+        task->piece == NULL ||
+        task->socket_fd < 0 ||
+        task->pieces_dir == NULL) {
+        return -1;
+    }
+
+    if (task->piece->info.size == 0 ||
+        task->piece->info.size > MAX_PAYLOAD_SIZE) {
+        return -1;
+    }
+
+    request.piece_id = task->piece->info.piece_id;
+    request.offset = task->piece->info.offset;
+    request.size = task->piece->info.size;
+
+    if (send_piece_request(
+            task->socket_fd,
+            &request
+        ) != 0) {
+        return -1;
+    }
+
+    if (receive_message(
+            task->socket_fd,
+            &message_type,
+            buffer,
+            sizeof(buffer),
+            &payload_size
+        ) != 0) {
+        return -1;
+    }
+
+    if (message_type != MSG_PIECE_RESPONSE ||
+        payload_size != request.size) {
+        return -1;
+    }
+
+    if (piece_store(
+            task->pieces_dir,
+            &task->piece->info,
+            buffer,
+            payload_size
+        ) != 0) {
+        return -1;
+    }
+
+    return 0;
 }
-void *upload_worker(void *arg)
+
+static void *download_worker_thread(void *arg)
 {
-    (void)arg;
+    DownloadTask *task = arg;
+
+    if (task == NULL || task->piece == NULL) {
+        return NULL;
+    }
+
+    pthread_mutex_lock(&task->piece->mutex);
+
+    if (task->piece->state != TRANSFER_MISSING) {
+        task->result = -1;
+        pthread_mutex_unlock(&task->piece->mutex);
+        return NULL;
+    }
+
+    task->piece->state = TRANSFER_DOWNLOADING;
+
+    pthread_mutex_unlock(&task->piece->mutex);
+
+    task->result = download_piece(task);
+
+    pthread_mutex_lock(&task->piece->mutex);
+
+    if (task->result == 0) {
+        task->piece->state = TRANSFER_COMPLETED;
+    } else {
+        task->piece->state = TRANSFER_FAILED;
+    }
+
+    pthread_mutex_unlock(&task->piece->mutex);
+
     return NULL;
 }
-int start_downloads( DownloadTask *tasks, size_t task_count, size_t thread_count)
+
+void *upload_worker(void *arg)
 {
-    if (tasks == NULL || task_count == 0 || thread_count == 0) 
-    {
+    UploadTask *task = arg;
+    unsigned char buffer[MAX_PAYLOAD_SIZE];
+
+    if (task == NULL ||
+        task->socket_fd < 0 ||
+        task->file_fd < 0) {
+        return NULL;
+    }
+
+    while (1) {
+        PieceRequest request;
+        ssize_t bytes_read;
+
+        if (receive_piece_request(
+                task->socket_fd,
+                &request
+            ) != 0) {
+            break;
+        }
+
+        if (request.size == 0 ||
+            request.size > MAX_PAYLOAD_SIZE) {
+            break;
+        }
+
+        bytes_read = pread(
+            task->file_fd,
+            buffer,
+            request.size,
+            (off_t)request.offset
+        );
+
+        if (bytes_read < 0 ||
+            (uint64_t)bytes_read != request.size) {
+            break;
+        }
+
+        if (send_message(
+                task->socket_fd,
+                MSG_PIECE_RESPONSE,
+                buffer,
+                (uint32_t)bytes_read
+            ) != 0) {
+            break;
+        }
+    }
+
+    return NULL;
+}
+
+int start_downloads(
+    DownloadTask *tasks,
+    size_t task_count,
+    size_t thread_count
+)
+{
+    if (tasks == NULL ||
+        task_count == 0 ||
+        thread_count == 0) {
         return -1;
     }
-    if (thread_count > task_count)
-     {
+
+    if (thread_count > task_count) {
         thread_count = task_count;
     }
-    pthread_t *threads = malloc(thread_count * sizeof(pthread_t));
-    if (threads == NULL) 
-    {
+
+    pthread_t *threads = malloc(
+        thread_count * sizeof(pthread_t)
+    );
+
+    if (threads == NULL) {
         return -1;
     }
+
     size_t started = 0;
-    while (started < task_count) 
-    {
+    int result = 0;
+
+    while (started < task_count) {
         size_t batch = 0;
-        while (batch < thread_count && started + batch < task_count) 
-        {
-            if (pthread_create(&threads[batch], NULL, download_worker, &tasks[started + batch]) != 0) 
-                {
+
+        while (batch < thread_count &&
+               started + batch < task_count) {
+
+            tasks[started + batch].result = -1;
+
+            if (pthread_create(
+                    &threads[batch],
+                    NULL,
+                    download_worker_thread,
+                    &tasks[started + batch]
+                ) != 0) {
                 break;
             }
+
             batch++;
         }
-        for (size_t i = 0; i < batch; i++) 
-        {
+
+        for (size_t i = 0; i < batch; i++) {
             pthread_join(threads[i], NULL);
         }
-        if (batch == 0) 
-        {
-            free(threads);
-            return -1;
+
+        if (batch == 0) {
+            result = -1;
+            break;
         }
+
+        for (size_t i = 0; i < batch; i++) {
+            if (tasks[started + i].result != 0) {
+                result = -1;
+            }
+        }
+
         started += batch;
     }
+
     free(threads);
-    return 0;
+
+    return result;
 }
 
 int serialize_piece_request(
@@ -161,7 +298,8 @@ int deserialize_piece_request(
     uint64_t network_offset;
     uint64_t network_size;
 
-    if (buffer == NULL || request == NULL) {
+    if (buffer == NULL ||
+        request == NULL) {
         return -1;
     }
 
