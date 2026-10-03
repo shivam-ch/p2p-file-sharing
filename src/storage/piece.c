@@ -147,6 +147,68 @@ int piece_store(
     }
 
     piece->status = PIECE_AVAILABLE;
+    return 0;
+}
+int piece_read(
+    const char *pieces_dir,
+    const PieceInfo *piece,
+    unsigned char *buffer,
+    size_t buffer_size
+)
+{
+    char piece_path[1024];
+    FILE *file;
+    size_t bytes_read;
+    int written;
+
+    if (pieces_dir == NULL ||
+        piece == NULL ||
+        buffer == NULL) {
+        return -1;
+    }
+
+    if (buffer_size < piece->size) {
+        return -1;
+    }
+
+    if (!piece_is_available(piece)) {
+        return -1;
+    }
+
+    written = snprintf(
+        piece_path,
+        sizeof(piece_path),
+        "%s/piece_%u",
+        pieces_dir,
+        piece->piece_id
+    );
+
+    if (written < 0 ||
+        (size_t)written >= sizeof(piece_path)) {
+        return -1;
+    }
+
+    file = fopen(piece_path, "rb");
+
+    if (file == NULL) {
+        return -1;
+    }
+
+    bytes_read = fread(
+        buffer,
+        1,
+        (size_t)piece->size,
+        file
+    );
+
+    if (bytes_read != (size_t)piece->size) {
+        fclose(file);
+        return -1;
+    }
+
+    if (fclose(file) != 0) {
+        return -1;
+    }
 
     return 0;
 }

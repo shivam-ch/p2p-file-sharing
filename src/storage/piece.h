@@ -29,4 +29,10 @@ int piece_store(
     const unsigned char *data,
     size_t data_size
 );
+int piece_read(
+    const char *pieces_dir,
+    const PieceInfo *piece,
+    unsigned char *buffer,
+    size_t buffer_size
+);
 #endif

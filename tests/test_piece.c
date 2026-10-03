@@ -214,6 +214,62 @@ int main(void)
         remove(original_file);
         return 1;
     }
+        /*
+     * Test reading a successfully stored piece.
+     */
+    unsigned char read_buffer[sizeof(data) - 1];
+
+    memset(
+        read_buffer,
+        0,
+        sizeof(read_buffer)
+    );
+
+    /*
+     * Restore the valid piece because the previous
+     * corrupted-piece test intentionally removed it.
+     */
+    if (piece_store(
+            pieces_dir,
+            &piece,
+            data,
+            data_size
+        ) != 0) {
+
+        printf("Failed to restore valid piece for read test.\n");
+        remove(original_file);
+        rmdir(pieces_dir);
+        return 1;
+    }
+
+    if (piece_read(
+            pieces_dir,
+            &piece,
+            read_buffer,
+            sizeof(read_buffer)
+        ) != 0) {
+
+        printf("piece_read() failed.\n");
+        remove(stored_path);
+        rmdir(pieces_dir);
+        remove(original_file);
+        return 1;
+    }
+
+    if (memcmp(
+            read_buffer,
+            data,
+            data_size
+        ) != 0) {
+
+        printf("Read piece does not match original data.\n");
+        remove(stored_path);
+        rmdir(pieces_dir);
+        remove(original_file);
+        return 1;
+    }
+
+    printf("Piece read test passed.\n");
 
     printf("Corrupted piece rejection passed.\n");
 
