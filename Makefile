@@ -26,7 +26,8 @@ STORAGE_SRC = \
 RECOVERY_SRC = \
 	src/recovery/failure.c \
 	src/recovery/timeout.c \
-	src/recovery/fairness.c
+	src/recovery/fairness.c \
+	src/recovery/recovery.c
 
 TRANSFER_SRC = \
 	src/transfer/transfer.c
@@ -56,8 +57,12 @@ test: core-tests
 core-tests: \
 	test_protocol \
 	test_file_io \
+	test_piece \
 	test_piece_block \
-	test_transfer
+	test_transfer \
+	test_recovery \
+	test_timeout \
+	test_fairness
 
 test_protocol:
 	$(CC) $(CFLAGS) \
@@ -71,6 +76,14 @@ test_file_io:
 		tests/test_file_io.c \
 		src/storage/file_io.c \
 		-o tests/test_file_io
+
+test_piece:
+	$(CC) $(CFLAGS) \
+		tests/test_piece.c \
+		src/storage/piece.c \
+		src/storage/sha256.c \
+		$(LDFLAGS) \
+		-o tests/test_piece
 
 test_piece_block:
 	$(CC) $(CFLAGS) \
@@ -94,11 +107,34 @@ test_transfer:
 		$(LDFLAGS) \
 		-o tests/test_transfer
 
+test_recovery:
+	$(CC) $(CFLAGS) \
+		tests/test_recovery.c \
+		src/recovery/recovery.c \
+		src/recovery/failure.c \
+		-o tests/test_recovery
+
+test_timeout:
+	$(CC) $(CFLAGS) \
+		tests/test_timeout.c \
+		src/recovery/timeout.c \
+		-o tests/test_timeout
+
+test_fairness:
+	$(CC) $(CFLAGS) \
+		tests/test_fairness.c \
+		src/recovery/fairness.c \
+		-o tests/test_fairness		
+
 clean:
 	rm -f $(ALL_OBJ)
 	rm -f tests/test_protocol
 	rm -f tests/test_file_io
 	rm -f tests/test_piece_block
 	rm -f tests/test_transfer
+	rm -f tests/test_recovery
+	rm -f tests/test_timeout
+	rm -f tests/test_fairness
+	rm -f tests/test_piece
 
 .PHONY: all clean test core-tests
