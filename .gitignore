@@ -28,3 +28,8 @@ tests/test_timeout
 tests/test_fairness
 tests/test_tcp_transfer
 tests/test_tcp_concurrent_transfer
+tests/test_availability
+tests/test_corruption_recovery
+tests/test_peer_aware_download
+tests/test_recovery_transfer
+tests/test_three_peer_download
