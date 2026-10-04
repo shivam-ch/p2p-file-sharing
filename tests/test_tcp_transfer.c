@@ -37,19 +37,17 @@ static void *server_thread(void *arg)
     upload.file_fd = ctx->file_fd;
 
     upload_worker(&upload);
-
     close(client_fd);
     return NULL;
 }
-
 int main(void)
 {
-    const char *content =
-        "TCP concurrent P2P transfer integration test.\n"
-        "This data must survive the network transfer unchanged.\n";
+    char content[100000];
+    for (size_t i = 0; i < sizeof(content); i++) {
+        content[i] = (char)("ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i % 26]);
+    }
 
-    size_t content_size = strlen(content);
-
+    size_t content_size = sizeof(content);
     /* Create source file */
     int file_fd = open(TEST_FILE, O_CREAT | O_TRUNC | O_RDWR, 0644);
     if (file_fd < 0) {
