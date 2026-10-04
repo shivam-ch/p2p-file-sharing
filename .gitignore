@@ -23,3 +23,8 @@ tests/test_protocol
 tests/test_file_io
 tests/test_piece_block
 tests/test_transfer
+tests/test_recovery
+tests/test_timeout
+tests/test_fairness
+tests/test_tcp_transfer
+tests/test_tcp_concurrent_transfer
