@@ -55,7 +55,7 @@ all: $(ALL_OBJ)
 test: core-tests
 	@echo "All selected tests built successfully."
 
-core-tests: test_protocol test_file_io test_piece test_piece_block test_transfer test_recovery test_timeout test_fairness test_tcp_transfer test_tcp_concurrent_transfer test_recovery_transfer test_corruption_recovery
+core-tests: test_protocol test_file_io test_piece test_piece_block test_transfer test_recovery test_timeout test_fairness test_availability test_tcp_transfer test_tcp_concurrent_transfer test_peer_aware_download test_recovery_transfer test_corruption_recovery
 
 test_protocol:
 	$(CC) $(CFLAGS) \
@@ -86,6 +86,11 @@ test_piece_block:
 		src/storage/piece.c \
 		src/storage/sha256.c \
 		src/storage/file_io.c \
+		src/storage/availability.c \
+		src/network/discovery.c \
+		src/network/peer.c \
+		src/recovery/recovery.c \
+		src/recovery/failure.c \
 		$(LDFLAGS) \
 		-o tests/test_piece_block
 
@@ -97,6 +102,11 @@ test_transfer:
 		src/storage/piece.c \
 		src/storage/sha256.c \
 		src/storage/file_io.c \
+		src/network/discovery.c \
+		src/network/peer.c \
+		src/storage/availability.c \
+		src/recovery/recovery.c \
+		src/recovery/failure.c \
 		$(LDFLAGS) \
 		-o tests/test_transfer
 
@@ -118,6 +128,14 @@ test_fairness:
 		src/recovery/fairness.c \
 		-o tests/test_fairness
 
+test_availability:
+	gcc -Wall -Wextra -std=c11 \
+	    -I./src/common -I./src/storage \
+	    tests/test_availability.c \
+	    src/storage/availability.c \
+	    src/common/protocol.c \
+	    -o tests/test_availability
+
 test_tcp_transfer:
 	$(CC) $(CFLAGS) \
 		tests/test_tcp_transfer.c \
@@ -126,8 +144,43 @@ test_tcp_transfer:
 		src/storage/file_io.c \
 		src/storage/sha256.c \
 		src/network/peer.c \
+		src/network/discovery.c \
+		src/storage/availability.c \
+		src/recovery/recovery.c \
+		src/recovery/failure.c \
 		$(LDFLAGS) \
 		-o tests/test_tcp_transfer
+
+test_tcp_concurrent_transfer:
+	$(CC) $(CFLAGS) \
+		tests/test_tcp_concurrent_transfer.c \
+		src/transfer/transfer.c \
+		src/common/protocol.c \
+		src/storage/file_io.c \
+		src/storage/sha256.c \
+		src/network/peer.c \
+		src/network/discovery.c \
+		src/storage/availability.c \
+		src/recovery/recovery.c \
+		src/recovery/failure.c \
+		$(LDFLAGS) \
+		-o tests/test_tcp_concurrent_transfer
+
+test_peer_aware_download:
+	$(CC) $(CFLAGS) \
+		tests/test_peer_aware_download.c \
+		src/transfer/transfer.c \
+		src/common/protocol.c \
+		src/storage/file_io.c \
+		src/storage/sha256.c \
+		src/storage/piece.c \
+		src/storage/availability.c \
+		src/network/peer.c \
+		src/network/discovery.c \
+		src/recovery/recovery.c \
+		src/recovery/failure.c \
+		$(LDFLAGS) \
+		-o tests/test_peer_aware_download
 
 clean:
 	rm -f $(ALL_OBJ)
@@ -139,10 +192,14 @@ clean:
 	rm -f tests/test_recovery
 	rm -f tests/test_timeout
 	rm -f tests/test_fairness
+	rm -f tests/test_availability
 	rm -f tests/test_tcp_transfer
+	rm -f tests/test_tcp_concurrent_transfer
+	rm -f tests/test_peer_aware_download
+	rm -f tests/test_recovery_transfer
+	rm -f tests/test_corruption_recovery
 
 .PHONY: all clean test core-tests
-
 
 test_recovery_transfer:
 	$(CC) $(CFLAGS) \
@@ -158,18 +215,6 @@ test_recovery_transfer:
 		src/network/peer.c \
 		$(LDFLAGS) \
 		-o tests/test_recovery_transfer
-
-test_tcp_concurrent_transfer:
-	$(CC) $(CFLAGS) \
-		tests/test_tcp_concurrent_transfer.c \
-		src/transfer/transfer.c \
-		src/common/protocol.c \
-		src/storage/file_io.c \
-		src/storage/sha256.c \
-		src/network/peer.c \
-		$(LDFLAGS) \
-		-o tests/test_tcp_concurrent_transfer
-
 
 test_corruption_recovery:
 	$(CC) $(CFLAGS) \

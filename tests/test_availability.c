@@ -85,6 +85,42 @@ int main(void)
         return 1;
     }
 
+        /* Test peer selection */
+    uint32_t selected_peer;
+
+    if (availability_select_peer(
+            &table,
+            2,
+            &selected_peer
+        ) != 0) {
+
+        printf("Failed to select a peer for Piece 2.\n");
+        return 1;
+    }
+
+    printf(
+        "Selected Peer %u for Piece 2.\n",
+        selected_peer
+    );
+
+    if (selected_peer != 1) {
+        printf("Peer selection test failed.\n");
+        return 1;
+    }
+
+    /* Test selection for a missing piece */
+    if (availability_select_peer(
+            &table,
+            99,
+            &selected_peer
+        ) != -1) {
+
+        printf("Missing piece selection test failed.\n");
+        return 1;
+    }
+
+    printf("Peer selection tests passed.\n");
+
     printf("Availability tests passed.\n");
 
     free(table.pieces);

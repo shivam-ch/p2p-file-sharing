@@ -7,6 +7,9 @@
 
 #include "../common/types.h"
 #include "../common/protocol.h"
+#include "../network/discovery.h"
+#include "../network/peer.h"
+#include "../storage/availability.h"
 
 typedef enum
 {
@@ -116,6 +119,14 @@ int receive_piece_block(
     PieceBlock *block,
     unsigned char *data,
     uint32_t data_capacity
+);
+
+int download_piece_from_peer(
+    AvailabilityTable *availability,
+    PeerTable *peers,
+    uint32_t piece_id,
+    TransferPiece *piece,
+    const char *pieces_dir
 );
 
 #endif

@@ -45,6 +45,12 @@ PieceAvailability *availability_find_piece(
     uint32_t piece_id
 );
 
+int availability_select_peer(
+    AvailabilityTable *table,
+    uint32_t piece_id,
+    uint32_t *peer_id
+);
+
 int serialize_piece_info(
     uint32_t piece_id,
     uint32_t peer_id,

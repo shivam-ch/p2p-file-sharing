@@ -9,6 +9,7 @@
 #include "../storage/piece.h"
 #include "../storage/file_io.h"
 #include "../storage/sha256.h"
+#include "../recovery/recovery.h"
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -167,6 +168,164 @@ int download_piece(DownloadTask *task)
     task->piece->info.status = PIECE_AVAILABLE;
 
     return 0;
+}
+
+typedef struct {
+    AvailabilityTable *availability;
+    PeerTable *peers;
+    TransferPiece *piece;
+    const char *pieces_dir;
+} RecoveryDownloadContext;
+
+static int recovery_download_attempt(
+    uint32_t peer_id,
+    uint32_t piece_id,
+    void *context
+)
+{
+    RecoveryDownloadContext *ctx = context;
+
+    if (ctx == NULL ||
+        ctx->peers == NULL ||
+        ctx->piece == NULL ||
+        ctx->pieces_dir == NULL) {
+        return -1;
+    }
+
+    PeerInfo *peer =
+        peer_table_find(ctx->peers, peer_id);
+
+    if (peer == NULL) {
+        return -1;
+    }
+
+    int socket_fd = connect_to_peer(
+        peer->ip,
+        peer->port
+    );
+
+    if (socket_fd < 0) {
+        return -1;
+    }
+
+    DownloadTask task;
+
+    task.socket_fd = socket_fd;
+    task.pieces_dir = ctx->pieces_dir;
+    task.piece_id = piece_id;
+    task.piece = ctx->piece;
+    task.result = -1;
+
+    int result = download_piece(&task);
+
+    close(socket_fd);
+
+    return result;
+}
+
+int download_piece_from_peer(
+    AvailabilityTable *availability,
+    PeerTable *peers,
+    uint32_t piece_id,
+    TransferPiece *piece,
+    const char *pieces_dir
+)
+{
+    uint32_t initial_peer_id;
+
+    if (availability == NULL ||
+        peers == NULL ||
+        piece == NULL ||
+        pieces_dir == NULL) {
+        return -1;
+    }
+
+    /*
+     * Find the first peer that has this piece.
+     */
+    if (availability_select_peer(
+            availability,
+            piece_id,
+            &initial_peer_id
+        ) != 0) {
+        return -1;
+    }
+
+    /*
+     * Build the list of candidate peers that
+     * advertise this piece.
+     */
+    PieceAvailability *piece_availability =
+        availability_find_piece(
+            availability,
+            piece_id
+        );
+
+    if (piece_availability == NULL ||
+        piece_availability->peer_count == 0) {
+        return -1;
+    }
+
+    /*
+     * Initialize failure tracking for the
+     * peers that can provide this piece.
+     */
+    FailureTable failure_table;
+
+    failure_table_init(&failure_table);
+
+    for (size_t i = 0;
+         i < piece_availability->peer_count;
+         i++) {
+
+        uint32_t peer_id =
+            piece_availability->peer_ids[i];
+
+        PeerInfo *peer =
+            peer_table_find(peers, peer_id);
+
+        if (peer != NULL) {
+            failure_add_peer(
+                &failure_table,
+                *peer
+            );
+        }
+    }
+
+    /*
+     * Initialize recovery state.
+     */
+    RecoveryTask recovery_task;
+
+    recovery_task_init(
+        &recovery_task,
+        piece_id,
+        initial_peer_id
+    );
+
+    /*
+     * Context passed to each recovery attempt.
+     */
+    RecoveryDownloadContext context;
+
+    context.availability = availability;
+    context.peers = peers;
+    context.piece = piece;
+    context.pieces_dir = pieces_dir;
+
+    /*
+     * Try the selected peer. If it fails,
+     * recovery_retry() marks it failed and
+     * selects another available peer.
+     */
+    return recovery_retry(
+        &failure_table,
+        &recovery_task,
+        piece_availability->peer_ids,
+        piece_availability->peer_count,
+        recovery_download_attempt,
+        &context
+    );
 }
 
 static void *download_worker_thread(void *arg)

@@ -141,6 +141,29 @@ PieceAvailability *availability_find_piece(
     return NULL;
 }
 
+int availability_select_peer(
+    AvailabilityTable *table,
+    uint32_t piece_id,
+    uint32_t *peer_id
+)
+{
+    PieceAvailability *piece;
+
+    if (table == NULL || peer_id == NULL) {
+        return -1;
+    }
+
+    piece = availability_find_piece(table, piece_id);
+
+    if (piece == NULL || piece->peer_count == 0) {
+        return -1;
+    }
+
+    *peer_id = piece->peer_ids[0];
+
+    return 0;
+}
+
 int serialize_piece_info(
     uint32_t piece_id,
     uint32_t peer_id,
