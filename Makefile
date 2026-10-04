@@ -27,7 +27,8 @@ RECOVERY_SRC = \
 	src/recovery/failure.c \
 	src/recovery/timeout.c \
 	src/recovery/fairness.c \
-	src/recovery/recovery.c
+	src/recovery/recovery.c \
+	src/recovery/recovery_transfer.c
 
 TRANSFER_SRC = \
 	src/transfer/transfer.c
@@ -54,7 +55,7 @@ all: $(ALL_OBJ)
 test: core-tests
 	@echo "All selected tests built successfully."
 
-core-tests: test_protocol test_file_io test_piece test_piece_block test_transfer test_recovery test_timeout test_fairness test_tcp_transfer test_tcp_concurrent_transfer
+core-tests: test_protocol test_file_io test_piece test_piece_block test_transfer test_recovery test_timeout test_fairness test_tcp_transfer test_tcp_concurrent_transfer test_recovery_transfer test_corruption_recovery
 
 test_protocol:
 	$(CC) $(CFLAGS) \
@@ -105,7 +106,6 @@ test_recovery:
 		src/recovery/recovery.c \
 		src/recovery/failure.c \
 		-o tests/test_recovery
-
 test_timeout:
 	$(CC) $(CFLAGS) \
 		tests/test_timeout.c \
@@ -140,9 +140,24 @@ clean:
 	rm -f tests/test_timeout
 	rm -f tests/test_fairness
 	rm -f tests/test_tcp_transfer
-	rm -f tests/test_tcp_concurrent_transfer
 
 .PHONY: all clean test core-tests
+
+
+test_recovery_transfer:
+	$(CC) $(CFLAGS) \
+		tests/test_recovery_transfer.c \
+		src/recovery/recovery_transfer.c \
+		src/recovery/failure.c \
+		src/recovery/fairness.c \
+		src/transfer/transfer.c \
+		src/common/protocol.c \
+		src/storage/piece.c \
+		src/storage/sha256.c \
+		src/storage/file_io.c \
+		src/network/peer.c \
+		$(LDFLAGS) \
+		-o tests/test_recovery_transfer
 
 test_tcp_concurrent_transfer:
 	$(CC) $(CFLAGS) \
@@ -154,3 +169,19 @@ test_tcp_concurrent_transfer:
 		src/network/peer.c \
 		$(LDFLAGS) \
 		-o tests/test_tcp_concurrent_transfer
+
+
+test_corruption_recovery:
+	$(CC) $(CFLAGS) \
+		tests/test_corruption_recovery.c \
+		src/recovery/recovery_transfer.c \
+		src/recovery/failure.c \
+		src/recovery/fairness.c \
+		src/transfer/transfer.c \
+		src/common/protocol.c \
+		src/storage/piece.c \
+		src/storage/sha256.c \
+		src/storage/file_io.c \
+		src/network/peer.c \
+		$(LDFLAGS) \
+		-o tests/test_corruption_recovery
