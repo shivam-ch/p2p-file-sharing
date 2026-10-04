@@ -54,7 +54,7 @@ all: $(ALL_OBJ)
 test: core-tests
 	@echo "All selected tests built successfully."
 
-core-tests: test_protocol test_file_io test_piece test_piece_block test_transfer test_recovery test_timeout test_fairness test_tcp_transfer
+core-tests: test_protocol test_file_io test_piece test_piece_block test_transfer test_recovery test_timeout test_fairness test_tcp_transfer test_tcp_concurrent_transfer
 
 test_protocol:
 	$(CC) $(CFLAGS) \
@@ -140,5 +140,17 @@ clean:
 	rm -f tests/test_timeout
 	rm -f tests/test_fairness
 	rm -f tests/test_tcp_transfer
+	rm -f tests/test_tcp_concurrent_transfer
 
 .PHONY: all clean test core-tests
+
+test_tcp_concurrent_transfer:
+	$(CC) $(CFLAGS) \
+		tests/test_tcp_concurrent_transfer.c \
+		src/transfer/transfer.c \
+		src/common/protocol.c \
+		src/storage/file_io.c \
+		src/storage/sha256.c \
+		src/network/peer.c \
+		$(LDFLAGS) \
+		-o tests/test_tcp_concurrent_transfer
