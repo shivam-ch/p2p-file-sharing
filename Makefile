@@ -58,6 +58,7 @@ test: core-tests
 	@echo "Running complete test suite"
 	@echo "========================================"
 	@for test in \
+		test_mid_transfer_dropout \
 		test_three_peer_download \
 		test_protocol \
 		test_file_io \
@@ -83,7 +84,7 @@ test: core-tests
 	@echo "ALL TESTS PASSED"
 	@echo "========================================"
 
-core-tests: test_three_peer_download test_protocol test_file_io test_piece test_piece_block test_transfer test_recovery test_timeout test_fairness test_availability test_tcp_transfer test_tcp_concurrent_transfer test_peer_aware_download test_recovery_transfer test_corruption_recovery
+core-tests: test_mid_transfer_dropout test_three_peer_download test_protocol test_file_io test_piece test_piece_block test_transfer test_recovery test_timeout test_fairness test_availability test_tcp_transfer test_tcp_concurrent_transfer test_peer_aware_download test_recovery_transfer test_corruption_recovery
 
 test_protocol:
 	$(CC) $(CFLAGS) \
@@ -228,6 +229,24 @@ test_three_peer_download:
 		$(LDFLAGS) \
 		-o tests/test_three_peer_download
 
+test_mid_transfer_dropout:
+	$(CC) $(CFLAGS) \
+		tests/test_mid_transfer_dropout.c \
+		src/transfer/transfer.c \
+		src/common/protocol.c \
+		src/storage/file_io.c \
+		src/storage/sha256.c \
+		src/storage/piece.c \
+		src/storage/file_splitter.c \
+		src/storage/availability.c \
+		src/network/peer.c \
+		src/network/discovery.c \
+		src/recovery/recovery.c \
+		src/recovery/failure.c \
+		src/recovery/fairness.c \
+		$(LDFLAGS) \
+		-o tests/test_mid_transfer_dropout
+
 test_recovery_transfer:
 	$(CC) $(CFLAGS) \
 		tests/test_recovery_transfer.c \
@@ -281,5 +300,6 @@ clean:
 	rm -f tests/test_recovery_transfer
 	rm -f tests/test_corruption_recovery
 	rm -f tests/test_three_peer_download
+	rm -f tests/test_mid_transfer_dropout
 
 

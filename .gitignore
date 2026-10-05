@@ -33,3 +33,4 @@ tests/test_corruption_recovery
 tests/test_peer_aware_download
 tests/test_recovery_transfer
 tests/test_three_peer_download
+tests/test_mid_transfer_dropout
