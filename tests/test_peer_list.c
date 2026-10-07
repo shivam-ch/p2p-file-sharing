@@ -33,6 +33,7 @@ int main(void)
 
     if (server_fd < 0) {
         printf("Failed to start listener.\n");
+        peer_table_free(&table);
         return 1;
     }
 
@@ -44,6 +45,7 @@ int main(void)
     if (peer_fd < 0) {
         printf("Failed to accept peer.\n");
         close(server_fd);
+        peer_table_free(&table);
         return 1;
     }
 
@@ -53,6 +55,7 @@ int main(void)
         printf("Failed to send peer list.\n");
         close(peer_fd);
         close(server_fd);
+        peer_table_free(&table);
         return 1;
     }
 
@@ -60,6 +63,7 @@ int main(void)
 
     close(peer_fd);
     close(server_fd);
+    peer_table_free(&table);
 
     return 0;
 }

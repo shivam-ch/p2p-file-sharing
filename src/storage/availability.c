@@ -18,6 +18,27 @@ void availability_init(
     table->piece_count = 0;
 }
 
+void availability_free(
+    AvailabilityTable *table
+)
+{
+    if (table == NULL) {
+        return;
+    }
+
+    for (size_t i = 0; i < table->piece_count; i++) {
+        free(table->pieces[i].peer_ids);
+        table->pieces[i].peer_ids = NULL;
+        table->pieces[i].peer_count = 0;
+        table->pieces[i].peer_capacity = 0;
+    }
+
+    free(table->pieces);
+
+    table->pieces = NULL;
+    table->piece_count = 0;
+}
+
 int availability_add_piece(
     AvailabilityTable *table,
     uint32_t piece_id
@@ -45,10 +66,11 @@ int availability_add_piece(
     table->pieces = new_pieces;
 
     table->pieces[table->piece_count].piece_id = piece_id;
+    table->pieces[table->piece_count].peer_ids = NULL;
     table->pieces[table->piece_count].peer_count = 0;
+    table->pieces[table->piece_count].peer_capacity = 0;
 
     table->piece_count++;
-
     return 0;
 }
 
@@ -59,6 +81,8 @@ int availability_add_peer(
 )
 {
     PieceAvailability *piece;
+    uint32_t *new_peer_ids;
+    size_t new_capacity;
 
     if (table == NULL) {
         return -1;
@@ -70,15 +94,33 @@ int availability_add_peer(
         return -1;
     }
 
-    if (piece->peer_count >= MAX_PIECE_PEERS) {
-        return -1;
-    }
-
+    /* Prevent duplicate peer entries */
     for (size_t i = 0; i < piece->peer_count; i++) {
-
         if (piece->peer_ids[i] == peer_id) {
             return -1;
         }
+    }
+
+    /* Grow the peer list when necessary */
+    if (piece->peer_count == piece->peer_capacity) {
+
+        if (piece->peer_capacity == 0) {
+            new_capacity = 8;
+        } else {
+            new_capacity = piece->peer_capacity * 2;
+        }
+
+        new_peer_ids = realloc(
+            piece->peer_ids,
+            new_capacity * sizeof(uint32_t)
+        );
+
+        if (new_peer_ids == NULL) {
+            return -1;
+        }
+
+        piece->peer_ids = new_peer_ids;
+        piece->peer_capacity = new_capacity;
     }
 
     piece->peer_ids[piece->peer_count] = peer_id;
@@ -109,6 +151,7 @@ int availability_remove_peer(
 
         if (piece->peer_ids[i] == peer_id) {
 
+            /* Shift remaining peers left */
             for (; i + 1 < piece->peer_count; i++) {
                 piece->peer_ids[i] = piece->peer_ids[i + 1];
             }

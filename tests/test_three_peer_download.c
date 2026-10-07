@@ -734,7 +734,7 @@ int main(void)
      * AvailabilityTable owns dynamically allocated
      * PieceAvailability storage.
      */
-    free(availability.pieces);
+    availability_free(&availability);
 
     free_pieces(pieces);
 

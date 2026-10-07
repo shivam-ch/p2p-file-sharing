@@ -286,7 +286,7 @@ int main(void)
     remove(piece_path);
     rmdir(pieces_dir);
 
-    free(availability.pieces);
+    availability_free(&availability);
 
     printf("\nPeer-aware download integration test passed.\n");
 

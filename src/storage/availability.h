@@ -6,20 +6,26 @@
 
 #include "../common/types.h"
 
-#define MAX_PIECE_PEERS 10
-
 typedef struct {
     uint32_t piece_id;
-    uint32_t peer_ids[MAX_PIECE_PEERS];
+
+    uint32_t *peer_ids;
     size_t peer_count;
+    size_t peer_capacity;
+
 } PieceAvailability;
 
 typedef struct {
     PieceAvailability *pieces;
     size_t piece_count;
+
 } AvailabilityTable;
 
 void availability_init(
+    AvailabilityTable *table
+);
+
+void availability_free(
     AvailabilityTable *table
 );
 

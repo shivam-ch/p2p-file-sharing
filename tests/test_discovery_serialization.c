@@ -24,6 +24,7 @@ int main(void)
     };
 
     peer_table_init(&original);
+    peer_table_init(&restored);
 
     peer_table_add(&original, peer_b);
     peer_table_add(&original, peer_c);
@@ -36,6 +37,8 @@ int main(void)
         ) != 0) {
 
         printf("Serialization failed.\n");
+        peer_table_free(&original);
+        peer_table_free(&restored);
         return 1;
     }
 
@@ -51,6 +54,8 @@ int main(void)
         ) != 0) {
 
         printf("Deserialization failed.\n");
+        peer_table_free(&original);
+        peer_table_free(&restored);
         return 1;
     }
 
@@ -94,5 +99,7 @@ int main(void)
 
     printf("Peer list serialization tests passed.\n");
 
+    peer_table_free(&original);
+    peer_table_free(&restored);
     return 0;
 }

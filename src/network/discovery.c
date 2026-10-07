@@ -1,9 +1,12 @@
 #include "discovery.h"
+#include <stdlib.h>
 
 #include <stddef.h>
 #include "../common/protocol.h"
 #include <arpa/inet.h>
 #include <string.h>
+
+#define INITIAL_PEER_CAPACITY 8
 
 void peer_table_init(PeerTable *table)
 {
@@ -11,7 +14,22 @@ void peer_table_init(PeerTable *table)
         return;
     }
 
+    table->peers = NULL;
     table->count = 0;
+    table->capacity = 0;
+}
+
+void peer_table_free(PeerTable *table)
+{
+    if (table == NULL) {
+        return;
+    }
+
+    free(table->peers);
+
+    table->peers = NULL;
+    table->count = 0;
+    table->capacity = 0;
 }
 
 int peer_table_add(
@@ -19,16 +37,37 @@ int peer_table_add(
     PeerInfo peer
 )
 {
-    if (table == NULL) {
-        return -1;
-    }
+    PeerInfo *new_peers;
 
-    if (table->count >= MAX_PEERS) {
+    if (table == NULL) {
         return -1;
     }
 
     if (peer_table_find(table, peer.peer_id) != NULL) {
         return -1;
+    }
+
+    if (table->count == table->capacity) {
+
+        size_t new_capacity;
+
+        if (table->capacity == 0) {
+            new_capacity = INITIAL_PEER_CAPACITY;
+        } else {
+            new_capacity = table->capacity * 2;
+        }
+
+        new_peers = realloc(
+            table->peers,
+            new_capacity * sizeof(PeerInfo)
+        );
+
+        if (new_peers == NULL) {
+            return -1;
+        }
+
+        table->peers = new_peers;
+        table->capacity = new_capacity;
     }
 
     table->peers[table->count] = peer;
@@ -186,10 +225,6 @@ int deserialize_peer_list(
 
     peer_count = ntohl(peer_count);
 
-    if (peer_count > MAX_PEERS) {
-        return -1;
-    }
-
     required_size = sizeof(uint32_t) +
                     peer_count * (sizeof(uint32_t) +
                                   sizeof(uint16_t) +
@@ -240,6 +275,7 @@ int deserialize_peer_list(
         cursor += 46;
 
         if (peer_table_add(table, peer) != 0) {
+            peer_table_free(table);
             return -1;
         }
     }

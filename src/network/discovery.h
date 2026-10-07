@@ -6,14 +6,14 @@
 
 #include "../common/types.h"
 
-#define MAX_PEERS 10
-
 typedef struct {
-    PeerInfo peers[MAX_PEERS];
+    PeerInfo *peers;
     size_t count;
+    size_t capacity;
 } PeerTable;
 
 void peer_table_init(PeerTable *table);
+void peer_table_free(PeerTable *table);
 
 int peer_table_add(
     PeerTable *table,

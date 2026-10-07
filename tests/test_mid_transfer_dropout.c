@@ -748,7 +748,7 @@ int main(void)
         );
     }
 
-    free(availability.pieces);
+    availability_free(&availability);
     free(pieces);
 
     cleanup();

@@ -80,7 +80,7 @@ int main(void)
     );
     }
 
-    free(table.pieces);
+    availability_free(&table);
 
     close(peer_fd);
 

@@ -5,7 +5,8 @@ CFLAGS = -Wall -Wextra -std=c11 \
          -I./src/network \
          -I./src/storage \
          -I./src/transfer \
-         -I./src/recovery
+         -I./src/recovery \
+         -I./src/app
 
 LDFLAGS = -pthread -lcrypto
 
@@ -33,6 +34,9 @@ RECOVERY_SRC = \
 TRANSFER_SRC = \
 	src/transfer/transfer.c
 
+APP_SRC = \
+	src/app/p2p.c
+
 ALL_SRC = \
 	$(COMMON_SRC) \
 	$(NETWORK_SRC) \
@@ -41,6 +45,19 @@ ALL_SRC = \
 	$(TRANSFER_SRC)
 
 ALL_OBJ = $(ALL_SRC:.c=.o)
+
+APP_SRC = \
+	src/app/p2p.c \
+	src/app/main.c
+
+P2P_SRC = \
+	$(APP_SRC) \
+	$(COMMON_SRC) \
+	$(NETWORK_SRC) \
+	$(STORAGE_SRC)
+
+p2p: $(P2P_SRC)
+	$(CC) $(CFLAGS) $(P2P_SRC) $(LDFLAGS) -o p2p
 
 TEST_DIR = tests
 
