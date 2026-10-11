@@ -63,11 +63,12 @@ static void *normal_server_thread(void *arg)
     if (ctx == NULL) {
         return NULL;
     }
-
     UploadConnectionContext connections[2];
+    UploadTask upload_tasks[2];
     pthread_t workers[2];
 
     memset(connections, 0, sizeof(connections));
+    memset(upload_tasks, 0, sizeof(upload_tasks));
     memset(workers, 0, sizeof(workers));
 
     /*
@@ -85,14 +86,15 @@ static void *normal_server_thread(void *arg)
         connections[i].client_fd = client_fd;
         connections[i].file_fd = ctx->file_fd;
 
+        upload_tasks[i].socket_fd = client_fd;
+        upload_tasks[i].file_fd = ctx->file_fd;
+
         if (pthread_create(
                 &workers[i],
                 NULL,
-                (void *(*)(void *))upload_worker,
-                &(UploadTask){
-                    .socket_fd = client_fd,
-                    .file_fd = ctx->file_fd
-                }) != 0) {
+                upload_worker,
+                &upload_tasks[i]
+            ) != 0) {
 
             close(client_fd);
             return NULL;

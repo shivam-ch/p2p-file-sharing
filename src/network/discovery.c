@@ -282,6 +282,88 @@ int deserialize_peer_list(
 
     return 0;
 }
+int merge_peer_list(
+    PeerTable *table,
+    const unsigned char *buffer,
+    uint32_t buffer_size
+)
+{
+    uint32_t peer_count;
+    uint32_t required_size;
+    const unsigned char *cursor;
+
+    if (table == NULL || buffer == NULL) {
+        return -1;
+    }
+
+    if (buffer_size < sizeof(uint32_t)) {
+        return -1;
+    }
+
+    memcpy(
+        &peer_count,
+        buffer,
+        sizeof(peer_count)
+    );
+
+    peer_count = ntohl(peer_count);
+
+    required_size = sizeof(uint32_t) +
+                    peer_count * (sizeof(uint32_t) +
+                                  sizeof(uint16_t) +
+                                  46);
+
+    if (buffer_size != required_size) {
+        return -1;
+    }
+
+    cursor = buffer + sizeof(uint32_t);
+
+    for (uint32_t i = 0; i < peer_count; i++) {
+
+        PeerInfo peer;
+
+        uint32_t network_peer_id;
+        uint16_t network_port;
+
+        memcpy(
+            &network_peer_id,
+            cursor,
+            sizeof(network_peer_id)
+        );
+
+        cursor += sizeof(network_peer_id);
+
+        memcpy(
+            &network_port,
+            cursor,
+            sizeof(network_port)
+        );
+
+        cursor += sizeof(network_port);
+
+        peer.peer_id = ntohl(network_peer_id);
+        peer.port = ntohs(network_port);
+
+        memcpy(
+            peer.ip,
+            cursor,
+            46
+        );
+
+        peer.ip[45] = '\0';
+
+        cursor += 46;
+
+        if (peer_table_find(table, peer.peer_id) == NULL) {
+            if (peer_table_add(table, peer) != 0) {
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
 int send_peer_list(
     int socket_fd,
     const PeerTable *table
@@ -310,10 +392,8 @@ int send_peer_list(
         payload_size
     );
 }
-int receive_peer_list(
-    int socket_fd,
-    PeerTable *table
-)
+
+int receive_peer_list(int socket_fd, PeerTable *table)
 {
     unsigned char buffer[MAX_PAYLOAD_SIZE];
     MessageType message_type;
@@ -337,9 +417,5 @@ int receive_peer_list(
         return -1;
     }
 
-    return deserialize_peer_list(
-        table,
-        buffer,
-        payload_size
-    );
+    return merge_peer_list(table, buffer, payload_size);
 }

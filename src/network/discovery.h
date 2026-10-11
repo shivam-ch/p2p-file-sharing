@@ -43,6 +43,12 @@ int deserialize_peer_list(
     uint32_t buffer_size
 );
 
+int merge_peer_list(
+    PeerTable *table,
+    const unsigned char *buffer,
+    uint32_t buffer_size
+);
+
 int send_peer_list(
     int socket_fd,
     const PeerTable *table

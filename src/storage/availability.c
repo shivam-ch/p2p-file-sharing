@@ -94,10 +94,10 @@ int availability_add_peer(
         return -1;
     }
 
-    /* Prevent duplicate peer entries */
+    /* Repeated advertisements are valid and idempotent. */
     for (size_t i = 0; i < piece->peer_count; i++) {
         if (piece->peer_ids[i] == peer_id) {
-            return -1;
+            return 0;
         }
     }
 

@@ -13,7 +13,8 @@ typedef enum {
     MSG_PIECE_RESPONSE,
     MSG_PING,
     MSG_PONG,
-    MSG_DISCONNECT
+    MSG_DISCONNECT,
+    MSG_FILE_MANIFEST
 } MessageType;
 
 typedef struct {

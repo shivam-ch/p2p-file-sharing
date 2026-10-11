@@ -22,7 +22,8 @@ STORAGE_SRC = \
 	src/storage/sha256.c \
 	src/storage/file_splitter.c \
 	src/storage/availability.c \
-	src/storage/file_io.c
+	src/storage/file_io.c \
+	src/storage/piece_scheduler.c
 
 RECOVERY_SRC = \
 	src/recovery/failure.c \
@@ -50,23 +51,43 @@ APP_SRC = \
 	src/app/p2p.c \
 	src/app/main.c
 
+
 P2P_SRC = \
-	$(APP_SRC) \
-	$(COMMON_SRC) \
-	$(NETWORK_SRC) \
-	$(STORAGE_SRC)
+        $(APP_SRC) \
+        $(COMMON_SRC) \
+        $(NETWORK_SRC) \
+        $(STORAGE_SRC) \
+        $(TRANSFER_SRC) \
+        $(RECOVERY_SRC)
 
 p2p: $(P2P_SRC)
 	$(CC) $(CFLAGS) $(P2P_SRC) $(LDFLAGS) -o p2p
 
 TEST_DIR = tests
 
-.PHONY: all clean test core-tests
+.PHONY: all clean test core-tests p2p test_discovery test_discovery_serialization test_hello test_p2p_node
 
 all: $(ALL_OBJ)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+
+test_discovery:
+	$(CC) $(CFLAGS) \
+		tests/test_discovery.c \
+		src/network/discovery.c \
+		src/common/protocol.c \
+		-o tests/test_discovery
+	./tests/test_discovery
+
+test_discovery_serialization:
+	$(CC) $(CFLAGS) \
+		tests/test_discovery_serialization.c \
+		src/network/discovery.c \
+		src/common/protocol.c \
+		-o tests/test_discovery_serialization
+	./tests/test_discovery_serialization
 
 # Build and run the core unit/integration tests
 
@@ -86,6 +107,7 @@ test: core-tests
 		test_timeout \
 		test_fairness \
 		test_availability \
+		test_piece_scheduler \
 		test_tcp_transfer \
 		test_tcp_concurrent_transfer \
 		test_peer_aware_download \
@@ -137,6 +159,7 @@ test_piece_block:
 		src/network/peer.c \
 		src/recovery/recovery.c \
 		src/recovery/failure.c \
+		src/recovery/fairness.c \
 		$(LDFLAGS) \
 		-o tests/test_piece_block
 
@@ -153,6 +176,7 @@ test_transfer:
 		src/storage/availability.c \
 		src/recovery/recovery.c \
 		src/recovery/failure.c \
+		src/recovery/fairness.c \
 		$(LDFLAGS) \
 		-o tests/test_transfer
 
@@ -182,6 +206,14 @@ test_availability:
 	    src/common/protocol.c \
 	    -o tests/test_availability
 
+test_piece_scheduler:
+	$(CC) $(CFLAGS) \
+		tests/test_piece_scheduler.c \
+		src/storage/piece_scheduler.c \
+		src/storage/availability.c \
+		src/common/protocol.c \
+		-o tests/test_piece_scheduler
+
 test_tcp_transfer:
 	$(CC) $(CFLAGS) \
 		tests/test_tcp_transfer.c \
@@ -194,6 +226,7 @@ test_tcp_transfer:
 		src/storage/availability.c \
 		src/recovery/recovery.c \
 		src/recovery/failure.c \
+		src/recovery/fairness.c \
 		$(LDFLAGS) \
 		-o tests/test_tcp_transfer
 
@@ -209,6 +242,7 @@ test_tcp_concurrent_transfer:
 		src/storage/availability.c \
 		src/recovery/recovery.c \
 		src/recovery/failure.c \
+		src/recovery/fairness.c \
 		$(LDFLAGS) \
 		-o tests/test_tcp_concurrent_transfer
 
@@ -225,6 +259,7 @@ test_peer_aware_download:
 		src/network/discovery.c \
 		src/recovery/recovery.c \
 		src/recovery/failure.c \
+		src/recovery/fairness.c \
 		$(LDFLAGS) \
 		-o tests/test_peer_aware_download
 
@@ -301,6 +336,7 @@ test_corruption_recovery:
 		-o tests/test_corruption_recovery
 
 clean:
+	rm -f p2p
 	rm -f $(ALL_OBJ)
 	rm -f tests/test_protocol
 	rm -f tests/test_file_io

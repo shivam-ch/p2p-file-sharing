@@ -18,6 +18,19 @@ int start_listener(uint16_t port)
         return -1;
     }
 
+    int reuse = 1;
+
+    if (setsockopt(
+            server_fd,
+            SOL_SOCKET,
+            SO_REUSEADDR,
+            &reuse,
+            sizeof(reuse)
+        ) < 0) {
+        perror("setsockopt SO_REUSEADDR");
+        close(server_fd);
+        return -1;
+    }
     memset(&server_address, 0, sizeof(server_address));
 
     server_address.sin_family = AF_INET;

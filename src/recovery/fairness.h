@@ -39,5 +39,14 @@ PeerContribution *fairness_find_peer(
     FairnessTable *table,
     uint32_t peer_id
 );
+double fairness_get_ratio(const PeerContribution *peer);
+int fairness_save(
+    const FairnessTable *table,
+    const char *filepath
+);
 
+int fairness_load(
+    FairnessTable *table,
+    const char *filepath
+);
 #endif

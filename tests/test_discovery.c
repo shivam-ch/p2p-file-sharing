@@ -82,6 +82,66 @@ int main(void)
         return 1;
     }
 
+        /* Test merging a received peer list */
+    PeerTable received;
+    peer_table_init(&received);
+
+    PeerInfo peer21 = {
+        .peer_id = 21,
+        .ip = "127.0.0.1",
+        .port = 5021
+    };
+
+    PeerInfo peer20 = {
+        .peer_id = 20,
+        .ip = "127.0.0.1",
+        .port = 5020
+    };
+
+    if (peer_table_add(&received, peer21) != 0 ||
+        peer_table_add(&received, peer20) != 0) {
+        printf("Failed to prepare received peer list.\n");
+        peer_table_free(&received);
+        peer_table_free(&table);
+        return 1;
+    }
+
+    unsigned char buffer[256];
+    uint32_t payload_size;
+
+    if (serialize_peer_list(
+            &received,
+            buffer,
+            sizeof(buffer),
+            &payload_size
+        ) != 0) {
+        printf("Failed to serialize peer list.\n");
+        peer_table_free(&received);
+        peer_table_free(&table);
+        return 1;
+    }
+
+    if (merge_peer_list(&table, buffer, payload_size) != 0) {
+        printf("Failed to merge peer list.\n");
+        peer_table_free(&received);
+        peer_table_free(&table);
+        return 1;
+    }
+
+    /* Peer 20 already exists; only Peer 21 should be added. */
+    if (table.count != 20 ||
+        peer_table_find(&table, 20) == NULL ||
+        peer_table_find(&table, 21) == NULL) {
+        printf("Peer-list merge test failed.\n");
+        peer_table_free(&received);
+        peer_table_free(&table);
+        return 1;
+    }
+
+    printf("Peer-list merge test passed.\n");
+
+    peer_table_free(&received);
+
     printf("Dynamic N-peer discovery test passed.\n");
 
     peer_table_free(&table);

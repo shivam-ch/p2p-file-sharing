@@ -10,6 +10,8 @@
 #include "../network/discovery.h"
 #include "../network/peer.h"
 #include "../storage/availability.h"
+#include "../recovery/fairness.h"
+#include <pthread.h>
 
 typedef enum
 {
@@ -31,6 +33,7 @@ typedef struct
     int socket_fd;
     const char *pieces_dir;
     uint32_t piece_id;
+    uint32_t requester_peer_id;
     TransferPiece *piece;
     int result;
 } DownloadTask;
@@ -43,9 +46,21 @@ typedef struct
 
 typedef struct
 {
+    UploadTask upload;
+    FairnessTable *fairness;
+    pthread_mutex_t *fairness_mutex;
+    pthread_mutex_t *upload_mutex;
+    pthread_cond_t *upload_cond;
+    size_t *active_uploads;
+    char fairness_path[512];
+} TrackedUploadTask;
+
+typedef struct
+{
     uint32_t piece_id;
     uint64_t offset;
     uint64_t size;
+    uint32_t requester_peer_id;
 } PieceRequest;
 
 typedef struct
@@ -62,6 +77,7 @@ typedef struct
 int download_piece(DownloadTask *task);
 
 void *upload_worker(void *arg);
+void *upload_worker_tracked(void *arg);
 
 int start_downloads(
     DownloadTask *tasks,
@@ -129,4 +145,25 @@ int download_piece_from_peer(
     const char *pieces_dir
 );
 
+int download_piece_from_peer_with_id(
+    AvailabilityTable *availability,
+    PeerTable *peers,
+    uint32_t piece_id,
+    TransferPiece *piece,
+    const char *pieces_dir,
+    uint32_t requester_peer_id
+);
+
+int download_piece_from_peer_tracked(
+    AvailabilityTable *availability,
+    pthread_mutex_t *availability_mutex,
+    PeerTable *peers,
+    pthread_mutex_t *peers_mutex,
+    uint32_t piece_id,
+    TransferPiece *piece,
+    const char *pieces_dir,
+    uint32_t requester_peer_id,
+    FairnessTable *fairness,
+    pthread_mutex_t *fairness_mutex
+);
 #endif

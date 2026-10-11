@@ -34,3 +34,23 @@ tests/test_peer_aware_download
 tests/test_recovery_transfer
 tests/test_three_peer_download
 tests/test_mid_transfer_dropout
+
+# Build and test artifacts
+tests/test_discovery
+tests/test_discovery_serialization
+tests/test_piece_scheduler
+Makefile.backup
+
+# Generated test files
+large_received.bin
+large_received.bin.pieces/
+large_test.bin
+large_test.bin.pieces/
+received.txt
+received.txt.pieces/
+recovery_test.bin
+recovery_test.bin.pieces/
+three_peer_test.txt
+three_peer_test.txt.pieces/
+test.txt
+pieces/
