@@ -32,7 +32,6 @@ Instead of relying on a central server to distribute an entire file, the system 
 
 The system also supports dynamic peer information exchange, piece availability tracking, automatic manifest updates, concurrent transfers, SHA-256 verification, and recovery from failed or corrupted transfers.
 
-
 ### Project Objectives
 
 - Implement peer-to-peer communication using TCP sockets.
