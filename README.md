@@ -1,123 +1,95 @@
-# 🌐 Peer-to-Peer File Sharing Network
+ <div align="center">
 
-### A Small-Scale BitTorrent-Inspired P2P File Sharing System
+# Peer-to-Peer File Sharing Network
 
-**Built with C • TCP Sockets • POSIX Threads • SHA-256 • OpenSSL**
+### A Small-Scale BitTorrent-Inspired File Sharing System
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Language-C-blue?style=for-the-badge&logo=c" alt="C">
-  <img src="https://img.shields.io/badge/Networking-TCP-orange?style=for-the-badge" alt="TCP">
-  <img src="https://img.shields.io/badge/Concurrency-POSIX%20Threads-green?style=for-the-badge" alt="POSIX Threads">
-  <img src="https://img.shields.io/badge/Integrity-SHA--256-purple?style=for-the-badge" alt="SHA-256">
-  <img src="https://img.shields.io/badge/Build-Make-red?style=for-the-badge" alt="GNU Make">
+A distributed file-sharing project built in C, demonstrating concurrent transfers, peer discovery, data integrity, and failure recovery.
+
+<p>
+  <img src="https://img.shields.io/badge/Language-C-00599C?style=flat-square&logo=c&logoColor=white" alt="Language: C">
+  <img src="https://img.shields.io/badge/Networking-TCP-2563EB?style=flat-square" alt="TCP Networking">
+  <img src="https://img.shields.io/badge/Concurrency-POSIX_Threads-16A34A?style=flat-square" alt="POSIX Threads">
+  <img src="https://img.shields.io/badge/Integrity-SHA--256-7C3AED?style=flat-square" alt="SHA-256">
+  <img src="https://img.shields.io/badge/Build-GNU_Make-DC2626?style=flat-square" alt="GNU Make">
 </p>
 
-<p align="center">
-  <a href="#-overview">Overview</a> •
-  <a href="#-features">Features</a> •
-  <a href="#-architecture">Architecture</a> •
-  <a href="#-how-it-works">Workflow</a> •
-  <a href="#-getting-started">Getting Started</a> •
-  <a href="#-testing">Testing</a> •
-  <a href="#-demo-scenarios">Demos</a>
-</p>
+**C · TCP Sockets · POSIX Threads · OpenSSL · GNU Make**
+
+⭐ **If you find this project interesting, consider giving it a star!**
+
+[Overview](#overview) · [Features](#features) · [Architecture](#architecture) · [Getting Started](#getting-started) · [Testing](#testing) · [Team](#team)
+
+</div>
 
 ---
 
-## 📌 Overview
+## Overview
 
-This project implements a small-scale **Peer-to-Peer (P2P) file-sharing system inspired by BitTorrent**, using C and TCP sockets.
+This project implements a small-scale **peer-to-peer (P2P) file-sharing system inspired by BitTorrent**. It allows peers to exchange file pieces directly over TCP rather than relying on a single server to supply every part of a file.
 
-Instead of relying on a central server to distribute an entire file, the system divides files into smaller pieces that can be transferred independently between peers. A downloader can retrieve different pieces from multiple peers concurrently and reconstruct the original file after validating the received data.
+Files are divided into independently transferable pieces. Multiple peers can contribute pieces to a download, allowing concurrent transfers, integrity verification, and recovery from unsuccessful transfers.
 
-The system also supports dynamic peer information exchange, piece availability tracking, automatic manifest updates, concurrent transfers, SHA-256 verification, and recovery from failed or corrupted transfers.
+### Key Objectives
 
-### Project Objectives
+- Build peer-to-peer communication using TCP sockets.
+- Split files into pieces for independent transfer.
+- Maintain peer information and piece availability.
+- Support dynamic file-manifest updates between known peers.
+- Download pieces concurrently using POSIX threads.
+- Verify piece integrity using SHA-256.
+- Recover from peer failures, corrupted data, and mid-transfer disconnections.
+- Reconstruct downloaded files and track peer contributions.
 
-- Implement peer-to-peer communication using TCP sockets.
-- Divide files into manageable pieces for independent transfer.
-- Allow multiple peers to contribute pieces to a download.
-- Download multiple pieces concurrently using POSIX threads.
-- Track which peers advertise particular pieces.
-- Notify connected peers when a file manifest becomes available or changes.
-- Verify piece integrity using SHA-256 hashes.
-- Recover from connection failures, corrupted data, and mid-transfer disconnections.
-- Reconstruct the original file from downloaded pieces.
-- Track peer upload and download contributions.
-- Test networking, storage, concurrency, and recovery through unit and integration tests.
+## Features
 
-The project is implemented in C using POSIX sockets, POSIX threads, GNU Make, and OpenSSL.
+| Category | Capabilities |
+|---|---|
+| **Networking** | TCP connections, peer listeners, peer discovery, peer-list exchange |
+| **File Distribution** | File splitting, piece metadata, manifest exchange |
+| **Dynamic Updates** | Manifest-update notifications and availability refresh |
+| **Scheduling** | Peer-aware selection and rarest-first piece ordering |
+| **Concurrency** | Multiple workers and concurrent piece downloads |
+| **Integrity** | SHA-256 verification and corrupted-piece rejection |
+| **Recovery** | Connection failure handling, timeouts, retries, dropout recovery |
+| **Storage** | Piece storage, file I/O, file reconstruction |
+| **Fairness** | Upload/download contribution tracking and history persistence |
+| **Testing** | Unit tests and multi-peer integration tests |
 
----
-
-## ✨ Features
-
-| Feature | Status |
-|---|:---:|
-| TCP peer-to-peer communication | ✅ |
-| Multiple peers in the network | ✅ |
-| Peer discovery and peer-list exchange | ✅ |
-| Peer information management | ✅ |
-| File splitting into pieces | ✅ |
-| Piece metadata and SHA-256 hashes | ✅ |
-| File manifest exchange | ✅ |
-| Automatic manifest update notifications | ✅ |
-| Dynamic piece-availability updates | ✅ |
-| Stale peer-to-piece mapping cleanup | ✅ |
-| Peer-aware piece selection | ✅ |
-| Rarest-first piece scheduling | ✅ |
-| Concurrent piece downloads | ✅ |
-| Multiple upload/download workers | ✅ |
-| SHA-256 integrity verification | ✅ |
-| Corrupted-piece detection and rejection | ✅ |
-| Peer failure recovery | ✅ |
-| Mid-transfer dropout recovery | ✅ |
-| Transfer timeout handling | ✅ |
-| File reconstruction | ✅ |
-| Upload/download contribution tracking | ✅ |
-| Fairness history persistence | ✅ |
-| Unit and integration tests | ✅ |
-
----
-
-## 🛠️ Technology Stack
+## Technology Stack
 
 | Technology | Purpose |
 |---|---|
-| C | Core implementation |
-| TCP / POSIX sockets | Reliable peer communication |
-| POSIX threads | Concurrent networking and transfers |
+| C | Core application and systems programming |
+| TCP / POSIX Sockets | Peer communication |
+| POSIX Threads | Concurrent operations |
 | OpenSSL | SHA-256 hashing |
-| GNU Make | Compilation and test automation |
-| GCC | C compilation |
-| Linux / WSL Ubuntu | Development and execution environment |
+| GCC | Compilation |
+| GNU Make | Build and test automation |
+| Linux / Ubuntu / WSL | Development environment |
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
-The project is divided into modules for application control, protocol handling, networking, storage, transfers, scheduling, and recovery.
+The codebase separates application control, networking, storage, transfers, and recovery into modules.
 
 ```text
 p2p-file-sharing/
-│
 ├── src/
 │   ├── app/
 │   │   ├── main.c
 │   │   ├── p2p.c
 │   │   └── p2p.h
-│   │
 │   ├── common/
 │   │   ├── protocol.c
 │   │   ├── protocol.h
 │   │   └── types.h
-│   │
 │   ├── network/
 │   │   ├── peer.c
 │   │   ├── peer.h
 │   │   ├── discovery.c
 │   │   └── discovery.h
-│   │
 │   ├── storage/
 │   │   ├── piece.c
 │   │   ├── piece.h
@@ -131,11 +103,9 @@ p2p-file-sharing/
 │   │   ├── file_io.h
 │   │   ├── piece_scheduler.c
 │   │   └── piece_scheduler.h
-│   │
 │   ├── transfer/
 │   │   ├── transfer.c
 │   │   └── transfer.h
-│   │
 │   └── recovery/
 │       ├── failure.c
 │       ├── failure.h
@@ -147,132 +117,120 @@ p2p-file-sharing/
 │       ├── recovery.h
 │       ├── recovery_transfer.c
 │       └── recovery_transfer.h
-│
 ├── tests/
-│   ├── test_protocol.c
-│   ├── test_file_io.c
-│   ├── test_piece.c
-│   ├── test_piece_block.c
-│   ├── test_transfer.c
-│   ├── test_recovery.c
-│   ├── test_timeout.c
-│   ├── test_fairness.c
-│   ├── test_availability.c
-│   ├── test_tcp_transfer.c
-│   ├── test_tcp_concurrent_transfer.c
-│   ├── test_peer_aware_download.c
-│   ├── test_recovery_transfer.c
-│   ├── test_corruption_recovery.c
-│   ├── test_three_peer_download.c
-│   ├── test_mid_transfer_dropout.c
-│   ├── test_discovery.c
-│   └── test_discovery_serialization.c
-│
 ├── Makefile
 ├── README.md
 └── .gitignore
 ```
 
-*The tree highlights the main source modules and test files. Additional generated files and local test data may be present.*
-
 ### Module Responsibilities
 
 | Module | Responsibility |
 |---|---|
-| `app/` | Application startup, command-line interface, and P2P orchestration |
-| `common/` | Protocol message definitions, serialization, and shared types |
-| `network/` | TCP peer connections, listeners, and peer discovery |
-| `storage/` | File splitting, piece storage, hashes, availability, and scheduling |
+| `app/` | Application startup, interactive CLI, P2P coordination |
+| `common/` | Protocol definitions and shared data types |
+| `network/` | TCP connections, listeners, peer discovery |
+| `storage/` | File splitting, piece metadata, hashes, availability, scheduling |
 | `transfer/` | Piece and block transfer operations |
-| `recovery/` | Failure handling, timeouts, recovery, and fairness tracking |
-| `tests/` | Unit tests and integration tests |
+| `recovery/` | Failure handling, timeouts, recovery, fairness tracking |
+| `tests/` | Unit and integration testing |
 
 ---
 
-## 🔄 How It Works
+## How It Works
+
+<div align="center">
 
 ```text
-                  Original File
-                       |
-                       v
-                Split into Pieces
-                       |
-          +------------+------------+
-          |            |            |
-          v            v            v
-       Piece 0      Piece 1      Piece 2
-          |            |            |
-          v            v            v
-        Peer 1       Peer 2       Peer 3
-          |            |            |
-          +------------+------------+
-                       |
-                       v
-              Concurrent Downloads
-                       |
-                       v
+            ┌─────────────────────┐
+            │     Original File    │
+            └──────────┬──────────┘
+                       │
+                       ▼
+            ┌─────────────────────┐
+            │    Split into       │
+            │      Pieces         │
+            └──────────┬──────────┘
+                       │
+             ┌─────────┼─────────┐
+             ▼         ▼         ▼
+          Piece 0   Piece 1   Piece 2
+             │         │         │
+             ▼         ▼         ▼
+           Peer 1    Peer 2    Peer 3
+             └─────────┼─────────┘
+                       │
+                       ▼
+            Concurrent Downloads
+                       │
+                       ▼
               SHA-256 Verification
-                       |
-                       v
-               File Reconstruction
-                       |
-                       v
-                 Complete File
+                       │
+                       ▼
+             File Reconstruction
+                       │
+                       ▼
+                Complete File
 ```
 
-### Typical Workflow
+</div>
 
-1. A peer starts its TCP listener and initializes its P2P state.
-2. Peers connect and exchange peer information.
-3. A peer shares a file, which is divided into pieces.
-4. The system creates a manifest containing metadata and expected hashes.
-5. Known peers are notified when the manifest becomes available or changes.
-6. Downloaders use piece-availability information to identify suitable sources.
-7. Multiple workers request and transfer pieces concurrently.
-8. Received pieces are checked against their expected SHA-256 hashes.
-9. Failed or corrupted transfers can be retried using another available peer.
-10. The downloaded pieces are reconstructed into the original file and verified.
+### Download Workflow
+
+1. Peers start their TCP listeners and exchange peer information.
+2. A peer shares a file and generates piece metadata and hashes.
+3. The file manifest is sent to known peers.
+4. Peers use availability information to identify potential piece sources.
+5. Multiple workers request and transfer pieces concurrently.
+6. Each received piece is checked against its expected SHA-256 hash.
+7. Failed or corrupted transfers can be retried using another peer.
+8. The pieces are reconstructed into the original file and verified.
 
 ---
 
-## 📦 File Splitting and Manifests
+## File Splitting and Manifests
 
-The original file is divided into smaller pieces that can be transferred independently.
+Each file is represented as a collection of pieces that can be transferred independently.
 
-Each piece has metadata such as:
+Piece metadata includes:
 
-- **Piece ID:** Identifies the piece.
-- **File offset:** Indicates where the piece belongs in the original file.
-- **Piece size:** Records the size of the piece.
-- **SHA-256 hash:** Provides an expected integrity value.
-- **Availability information:** Tracks peers advertising the piece.
+- Piece ID
+- File offset
+- Piece size
+- Expected SHA-256 hash
+- Availability information
 
-Example:
+A manifest communicates piece metadata to other peers without requiring them to download the complete file first.
 
-```text
-Original File
-    |
-    +-- Piece 0
-    +-- Piece 1
-    +-- Piece 2
-    +-- Piece 3
-```
+### Automatic Manifest Updates
 
-The manifest describes the pieces available from a peer. It allows other peers to discover piece metadata without downloading the complete file first.
+The application supports notifying known peers when a file is shared after peer connections have already been established.
 
-### Manifest Updates
+The announcing peer uses `p2p_announce_manifest()` to:
 
-The project supports notifying known peers when a peer shares a file after connections have already been established.
+1. Take a snapshot of its known peer list.
+2. Connect to eligible peers.
+3. Send a `MSG_MANIFEST_UPDATE` notification containing its peer ID.
+4. Send the file manifest.
+5. Report notification failures when they occur.
 
-The update uses the custom protocol message `MSG_MANIFEST_UPDATE`, followed by the file manifest.
+The receiving peer processes the update through its TCP listener and refreshes the announcing peer's availability mappings.
 
-This avoids requiring peers to disconnect and reconnect just to receive updated manifest information.
+**Why it matters:** Peers can receive newly shared file information without disconnecting and reconnecting.
+
+### Dynamic Availability Refresh
+
+When a replacement manifest is processed, the receiver removes the announcing peer's old piece mappings and adds the mappings from the new manifest.
+
+This helps prevent stale availability information from remaining in the table while preserving mappings for other peers.
+
+> **Implementation note:** The current design uses the existing peer and manifest model. It is intended for an academic P2P system, not as a secure or fully general-purpose BitTorrent implementation.
 
 ---
 
-## 👥 Peer Management and Discovery
+## Peer Discovery and Availability
 
-Each peer is identified by information such as:
+Each peer is represented by information such as:
 
 ```text
 Peer ID
@@ -280,69 +238,17 @@ IP Address
 Listening Port
 ```
 
-The networking and discovery modules support:
+The networking modules support:
 
 - Starting a TCP listener.
-- Accepting incoming peer connections.
+- Accepting incoming connections.
 - Connecting to known peers.
 - Exchanging peer lists.
-- Maintaining peer information.
-- Updating existing peer records.
+- Maintaining and updating peer records.
 - Validating peer information.
 - Supporting dynamically sized peer collections.
 
-Peer discovery and peer-list exchange help participants learn about other peers in the network.
-
-**Scope note:** This project does not implement a production-scale distributed hash table (DHT) or a centralized tracker service.
-
----
-
-## 📡 Automatic Manifest Updates
-
-One of the newer features is the ability to notify already-connected peers when a file manifest becomes available or changes.
-
-### The Problem
-
-Without a manifest-update mechanism, a peer that connects before another peer shares a file might not automatically receive the newly shared file's manifest. Reconnecting would otherwise be one way to obtain updated information.
-
-### The Solution
-
-When a peer shares a file, the application calls `p2p_announce_manifest()`.
-
-The announcing peer:
-
-1. Takes a snapshot of its known peer list.
-2. Connects to each eligible known peer.
-3. Sends a `MSG_MANIFEST_UPDATE` notification containing its peer ID.
-4. Sends its file manifest.
-5. Closes the notification connection and reports the result.
-
-The receiving peer:
-
-1. Recognizes the manifest-update message in its listener.
-2. Validates the message format and claimed peer ID against its known peer records.
-3. Receives and parses the file manifest.
-4. Updates the peer-to-piece availability mappings.
-5. Reports that the manifest was updated.
-
-### Benefits
-
-- Peers can discover newly shared files without reconnecting.
-- Piece availability can be refreshed dynamically.
-- Existing peer connections do not have to be restarted just to exchange a manifest.
-- Old availability mappings for the announcing peer are removed when a replacement manifest is processed.
-
-### Important Implementation Detail
-
-Manifest-update notifications use a separate TCP connection to the receiving peer's listening port. They do not replace the existing peer connection.
-
-The implementation validates the claimed peer ID against known peers, but this is not cryptographic peer authentication. The project remains an academic implementation rather than a security-hardened public file-sharing service.
-
----
-
-## 🧩 Piece Availability
-
-The availability system maintains a mapping between pieces and the peers that advertise them.
+The availability table maps piece IDs to peers that advertise those pieces.
 
 Example:
 
@@ -352,34 +258,11 @@ Piece 1 -> Peer 3
 Piece 2 -> Peer 2
 ```
 
-When a downloader needs a piece, the availability table helps identify a peer that may supply it.
+When a selected peer fails, recovery logic can attempt another peer advertising the required piece.
 
-### Dynamic Availability Refresh
+## Rarest-First Piece Scheduling
 
-When a new manifest arrives, the receiving peer updates the announcing peer's piece mappings.
-
-The refresh process:
-
-1. Parses and validates the received manifest.
-2. Removes the announcing peer from its old piece-availability mappings.
-3. Adds the peer to the mappings for pieces in the new manifest.
-4. Replaces the stored remote-manifest information.
-
-This prevents the availability table from continuing to advertise pieces that were present in an earlier manifest but are absent from the replacement manifest.
-
-Other peers advertising the same pieces remain in the availability table.
-
-### Failure Handling
-
-If a selected peer becomes unavailable, recovery can attempt another peer that advertises the requested piece.
-
----
-
-## 🎯 Rarest-First Piece Scheduling
-
-The project includes a piece scheduler that supports rarest-first ordering.
-
-The principle is to prioritize pieces advertised by fewer peers, helping the downloader obtain less widely available pieces earlier.
+The piece scheduler supports rarest-first ordering, which prioritizes pieces available from fewer peers.
 
 Example:
 
@@ -394,207 +277,79 @@ Rarest-first priority:
 3. Piece 0
 ```
 
-This example illustrates the scheduling principle; actual selection depends on the availability information supplied to the scheduler.
+Scheduler tests cover rarest-first ordering, stable tie ordering, unavailable pieces, empty inputs, and invalid arguments.
 
-The scheduler tests cover:
-
-- Rarest-first ordering.
-- Stable tie ordering.
-- Unavailable-piece ordering.
-- Empty input.
-- Invalid arguments.
-
-Rarest-first scheduling is a piece-selection strategy; it is not a complete BitTorrent choking or unchoking algorithm.
+Rarest-first scheduling is a piece-selection strategy; it does not implement the complete BitTorrent choking and unchoking algorithm.
 
 ---
 
-## ⚡ Concurrent Transfers
+## Concurrent Transfers
 
-The project uses POSIX threads to perform multiple piece downloads concurrently.
-
-Example:
+POSIX threads allow multiple piece downloads to run concurrently.
 
 ```text
-Worker 1 -> Download Piece 0 -> Peer 1
-Worker 2 -> Download Piece 1 -> Peer 2
-Worker 3 -> Download Piece 2 -> Peer 3
-Worker 4 -> Download Piece 3 -> Peer 1
+Worker 1 -> Piece 0 -> Peer 1
+Worker 2 -> Piece 1 -> Peer 2
+Worker 3 -> Piece 2 -> Peer 3
+Worker 4 -> Piece 3 -> Peer 1
 ```
 
-The integration tests exercise three-peer concurrent downloads and four-worker transfers.
+The integration tests cover multi-peer downloads and four-worker concurrent transfers.
 
-### Benefits
+Concurrent transfers can improve resource utilization, although actual performance depends on peer availability, file size, and network conditions.
 
-- Multiple pieces can be transferred at the same time.
-- Different peers can contribute different pieces.
-- A failed transfer can be recovered without necessarily restarting the complete download.
-- Piece integrity is checked before corrupted data is accepted.
+## Data Integrity and Recovery
 
-Concurrency does not guarantee that every transfer will be faster: actual performance depends on network conditions, peer availability, and file size.
+### SHA-256 Verification
 
----
-
-## 🔐 SHA-256 Integrity Verification
-
-Each piece has an expected SHA-256 hash.
-
-After receiving a piece, the system computes its hash and compares it with the expected value.
+Every piece has an expected SHA-256 hash. The receiver calculates the hash of the received piece and compares it with the expected value.
 
 ```text
-             Received Piece
-                   |
-                   v
-             Calculate Hash
-                   |
-                   v
-          Compare SHA-256 Hashes
-                   |
-             +-----+-----+
-             |           |
-             v           v
-           Match      Mismatch
-             |           |
-             v           v
-           Accept      Reject
-                         |
-                         v
-                 Attempt Recovery
+Received Piece
+      │
+      ▼
+Calculate SHA-256
+      │
+      ▼
+Compare Hashes
+      │
+   ┌──┴───┐
+   ▼      ▼
+ Match  Mismatch
+   │      │
+   ▼      ▼
+ Accept  Reject
+          │
+          ▼
+    Try Recovery
 ```
 
-If a piece fails integrity verification, it can be rejected and another available peer can be tried.
+A piece that fails verification can be rejected, and another available peer can be tried.
 
-The project also verifies reconstructed files in its integration tests.
+SHA-256 verifies data against the expected hash; it does not authenticate peers or protect against every form of malicious activity.
 
-**Note:** SHA-256 verification detects data corruption relative to the expected hash. It does not authenticate a peer or protect the entire network against malicious participants.
+### Failure Recovery
 
----
-
-## ♻️ Failure Recovery
-
-A peer can fail, become unreachable, or disconnect during a transfer.
-
-The recovery components handle scenarios such as:
+The recovery components address scenarios including:
 
 - Connection failures.
 - Peer unavailability.
 - Transfer timeouts.
 - Failed piece transfers.
-- Corrupted pieces.
+- Corrupted piece data.
 - Mid-transfer disconnections.
 
-Example:
+### Mid-Transfer Dropout
 
-```text
-Downloader
-    |
-    v
-  Peer 1
-    |
-    X Connection Failed
-    |
-    v
-  Peer 2
-    |
-    v
-Piece Recovered
-```
+The `test_mid_transfer_dropout` integration test simulates a peer disconnecting during an active transfer. It checks recovery from another peer, file reconstruction, and final SHA-256 verification.
 
-When an attempt fails, the recovery logic can try an alternate peer capable of supplying the requested piece.
+### Corruption Recovery
 
-### Timeout Handling
+The `test_corruption_recovery` test simulates a peer supplying corrupted data. The receiver detects the hash mismatch, rejects the piece, and attempts recovery from another peer.
 
-Timeout support helps detect stalled or unsuccessful operations and allows recovery logic to respond instead of waiting indefinitely for an expected result.
+## Fairness and Contribution Tracking
 
-### Mid-Transfer Dropout Recovery
-
-The integration test `test_mid_transfer_dropout` simulates a peer disconnecting during an active piece transfer.
-
-The test checks that the incomplete transfer can be recovered from another peer, the pieces are reconstructed, and the final SHA-256 verification succeeds.
-
----
-
-## 💥 Mid-Transfer Dropout Demo
-
-Run:
-
-```bash
-./tests/test_mid_transfer_dropout
-```
-
-The test simulates the following scenario:
-
-```text
-Piece 0 is available from Peer 1 and Peer 2
-                    |
-                    v
-             Request Piece 0
-                    |
-                    v
-                  Peer 1
-                    |
-                    v
-             Sends First Block
-                    |
-                    X Connection Drops
-                    |
-                    v
-                 Recovery
-                    |
-                    v
-                  Peer 2
-                    |
-                    v
-             Piece 0 Recovered
-                    |
-                    v
-          Reconstruct Complete File
-                    |
-                    v
-           SHA-256 Verification
-```
-
-The integration test verifies that all required pieces are downloaded, the file is reconstructed, and the final hash matches.
-
----
-
-## 🚨 Corruption Recovery
-
-The project includes an integration test that simulates a peer supplying corrupted piece data.
-
-Run:
-
-```bash
-./tests/test_corruption_recovery
-```
-
-The scenario is:
-
-```text
-Peer 1 sends corrupted data
-              |
-              v
-       SHA-256 Mismatch
-              |
-              v
-        Reject Piece
-              |
-              v
-     Request from Peer 2
-              |
-              v
-       Verify Correct Piece
-              |
-              v
-            Accept
-```
-
-This prevents a piece that fails its expected hash check from being accepted as valid data during reconstruction.
-
----
-
-## ⚖️ Fairness and Contribution Tracking
-
-The project tracks peer upload and download contributions.
+The fairness module tracks peer upload and download contributions and supports contribution-ratio calculations.
 
 Example:
 
@@ -604,72 +359,51 @@ Peer 2 -> Uploaded: 1 | Downloaded: 3
 Peer 3 -> Uploaded: 0 | Downloaded: 1
 ```
 
-The fairness module supports contribution tracking and ratio calculations. The project also includes tests for saving and restoring fairness history and handling missing fairness files.
+The project includes tests for contribution tracking, ratio calculations, and fairness-history persistence.
 
-This provides a foundation for examining how peers contribute resources to the network.
-
-**Scope note:** Contribution tracking is not the same as a complete BitTorrent tit-for-tat choking and unchoking mechanism.
+**Scope:** Contribution tracking is not a complete BitTorrent tit-for-tat choking and unchoking implementation.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Requirements
 
-The project is intended for Linux environments, including Ubuntu and WSL Ubuntu.
+- Linux, Ubuntu, or WSL Ubuntu
+- GCC
+- GNU Make
+- OpenSSL development libraries
+- POSIX sockets and threads
 
-Required tools and libraries:
-
-- GCC.
-- GNU Make.
-- OpenSSL development libraries.
-- POSIX sockets.
-- POSIX threads.
-
-Install the dependencies on Ubuntu:
+### 1. Install Dependencies
 
 ```bash
 sudo apt update
 sudo apt install build-essential libssl-dev
 ```
 
-Verify the compiler and build tools:
-
-```bash
-gcc --version
-make --version
-```
-
-### Clone the Repository
+### 2. Clone the Repository
 
 ```bash
 git clone https://github.com/shivam-ch/p2p-file-sharing.git
 cd p2p-file-sharing
 ```
 
-### Build
-
-Compile the project:
+### 3. Build the Project
 
 ```bash
 make
 ```
 
-This produces the `p2p` executable when compilation succeeds.
+This builds the `p2p` executable when compilation succeeds.
 
-Clean generated build and test binaries:
-
-```bash
-make clean
-```
-
-### Run the Test Suite
+### 4. Run the Tests
 
 ```bash
 make test
 ```
 
-To perform a clean build before testing:
+For a clean build followed by testing:
 
 ```bash
 make clean
@@ -677,19 +411,9 @@ make
 make test
 ```
 
----
+### 5. Start Peers
 
-## 🖥️ Running the P2P Application
-
-The application accepts a peer ID and listening port.
-
-General form:
-
-```bash
-./p2p <peer_id> <port>
-```
-
-For example, open separate terminals and start three peers:
+Run each peer in a separate terminal:
 
 **Terminal 1**
 
@@ -709,51 +433,32 @@ For example, open separate terminals and start three peers:
 ./p2p 3 5003
 ```
 
-Use distinct peer IDs and listening ports. The ports must be available on the machine.
-
-These examples assume the peers are running on the same machine and that the application is configured to use the appropriate local peer addresses. For separate machines, use reachable IP addresses and ensure that the required ports are accessible.
+Use distinct peer IDs and available ports. For peers running on different machines, use reachable IP addresses and ensure the required ports are accessible.
 
 ### Interactive CLI
 
-Once the application starts, it provides an interactive `p2p>` prompt.
-
-The CLI includes commands for operations such as:
+After startup, the application provides a `p2p>` prompt.
 
 | Command | Purpose |
 |---|---|
-| `help` | Display available commands |
+| `help` | Show supported commands |
 | `status` | Display local node status |
 | `connect` | Connect to another peer |
-| `peers` | Display known peers |
+| `peers` | List known peers |
 | `share` | Share a local file |
 | `download` | Download a shared file |
 | `fairness` | Display contribution information |
 | `exit` | Exit the application |
 
-Use `help` in the running application to see the exact syntax and arguments supported by the current build.
-
-File paths containing spaces should be entered using the quoting supported by the CLI.
-
-### Sharing and Manifest Updates
-
-A typical workflow is:
-
-1. Start the peers.
-2. Establish peer connections.
-3. Share a file using the CLI.
-4. Allow the sharing peer to announce its manifest to known peers.
-5. Use the receiving peers' updated availability information to request the file.
-6. Verify the downloaded output.
-
-The automatic manifest-update feature is especially useful when a peer shares a file after its other peers have already connected.
+Use `help` in the running application for the exact command syntax and arguments.
 
 ---
 
-## 🧪 Testing
+## Testing
 
-The project contains unit tests and integration tests for protocol handling, storage, availability, concurrency, networking, and recovery.
+The project contains unit and integration tests for networking, storage, protocol handling, scheduling, concurrent transfers, and recovery.
 
-Run the complete suite:
+Run the complete test suite:
 
 ```bash
 make test
@@ -761,29 +466,27 @@ make test
 
 ### Test Coverage
 
-| Test | Purpose |
+| Test | Coverage |
 |---|---|
 | `test_protocol` | Protocol definitions and message handling |
 | `test_file_io` | File input/output |
-| `test_piece` | Piece storage, status, and SHA-256 verification |
+| `test_piece` | Piece storage and hash verification |
 | `test_piece_block` | Piece-block serialization |
 | `test_transfer` | Concurrent transfer logic |
 | `test_recovery` | Peer failure recovery |
-| `test_timeout` | Timeout detection and reset |
-| `test_fairness` | Contribution tracking and fairness history |
+| `test_timeout` | Timeout handling |
+| `test_fairness` | Contribution tracking and history |
 | `test_availability` | Piece availability and peer selection |
-| `test_piece_scheduler` | Rarest-first ordering and scheduler edge cases |
+| `test_piece_scheduler` | Rarest-first scheduling |
 | `test_tcp_transfer` | TCP piece transfer |
 | `test_tcp_concurrent_transfer` | Concurrent TCP transfers |
-| `test_peer_aware_download` | Availability-based piece downloading |
-| `test_recovery_transfer` | Recovery from an unavailable peer |
-| `test_corruption_recovery` | Corrupted-piece detection and recovery |
-| `test_three_peer_download` | Concurrent full-file download from three peers |
-| `test_mid_transfer_dropout` | Recovery from a mid-transfer peer disconnection |
-| `test_discovery` | Peer discovery, validation, and peer-list management |
-| `test_discovery_serialization` | Peer-list serialization and deserialization |
-
-The test suite also covers dynamic peer collections, duplicate peer updates, peer-list merging, concurrent downloads, file reconstruction, and final SHA-256 verification.
+| `test_peer_aware_download` | Availability-based downloading |
+| `test_recovery_transfer` | Recovery from unavailable peers |
+| `test_corruption_recovery` | Corrupted-piece recovery |
+| `test_three_peer_download` | Three-peer concurrent download |
+| `test_mid_transfer_dropout` | Mid-transfer dropout recovery |
+| `test_discovery` | Peer discovery and validation |
+| `test_discovery_serialization` | Peer-list serialization |
 
 A successful run ends with:
 
@@ -793,114 +496,52 @@ ALL TESTS PASSED
 ========================================
 ```
 
-The test suite verifies the tested code paths. It does not imply that every possible network failure, malicious peer, or deployment environment has been tested.
+The automated suite validates its tested scenarios; it does not establish correctness under every possible network condition or malicious-peer scenario.
 
 ---
 
-## 🎬 Demo Scenarios
+## Demo Scenarios
 
-### 1. Three-Peer Concurrent Download
-
-Run:
+### Three-Peer Concurrent Download
 
 ```bash
 ./tests/test_three_peer_download
 ```
 
-Demonstrates:
+Demonstrates concurrent piece downloads from three peers, file reconstruction, and final SHA-256 verification.
 
-```text
-Piece 0 -> Peer 1
-Piece 1 -> Peer 2
-Piece 2 -> Peer 3
-         |
-         v
-Concurrent Downloads
-         |
-         v
-File Reconstruction
-         |
-         v
-SHA-256 Verification
-```
-
-The test verifies that pieces can be supplied by three peers concurrently and that the reconstructed file passes final integrity verification.
-
-### 2. Peer Dropout During Transfer
-
-Run:
+### Mid-Transfer Dropout Recovery
 
 ```bash
 ./tests/test_mid_transfer_dropout
 ```
 
-Demonstrates:
+Demonstrates recovery after a peer disconnects during a piece transfer.
 
-- A peer disconnecting during a piece transfer.
-- Recovery from an alternate peer.
-- Concurrent downloading of multiple pieces.
-- Complete file reconstruction.
-- Final SHA-256 verification.
-
-### 3. Corrupted Piece Recovery
-
-Run:
+### Corrupted-Piece Recovery
 
 ```bash
 ./tests/test_corruption_recovery
 ```
 
-Demonstrates:
+Demonstrates hash-mismatch detection, rejection of corrupted data, and recovery from an alternate peer.
 
-- Detection of corrupted piece data.
-- Rejection after a SHA-256 mismatch.
-- Recovery from an alternate peer.
-- Verification of the recovered piece.
+### Automatic Manifest Updates
 
-### 4. Automatic Manifest Update
+For a manual demonstration:
 
-For a manual test:
-
-1. Start three peers on separate terminals.
+1. Start three peers.
 2. Connect the peers so they know about each other.
-3. Share a file from one peer after the connections have been established.
-4. Check that the announcing peer reports manifest notifications.
+3. Share a file after connections have been established.
+4. Observe the manifest notification messages.
 5. Check that the receiving peers report the updated manifest.
-6. Download the shared file from another peer and verify the result.
+6. Download the shared file and verify the result.
 
-This demonstrates that an already-connected peer can receive a new manifest without reconnecting.
-
-The manual workflow is a demonstration scenario; the existing automated suite does not necessarily test every aspect of the CLI's manifest-announcement path.
+This demonstrates the intended workflow for notifying already-connected peers about newly shared files.
 
 ---
 
-## 📊 Test Coverage Summary
-
-The project includes tests covering:
-
-- Protocol definitions and serialization.
-- File I/O and piece storage.
-- TCP communication.
-- Concurrent transfers.
-- Peer discovery and peer-list management.
-- Piece availability and scheduling.
-- Peer-aware downloading.
-- SHA-256 integrity verification.
-- Corruption detection and recovery.
-- Connection failures and timeouts.
-- Mid-transfer peer dropout.
-- File reconstruction.
-- Fairness and contribution tracking.
-
-Run the full suite with:
-
-```bash
-make test
-```
-
----
-
-## 📁 Important Commands
+## Important Commands
 
 | Command | Description |
 |---|---|
@@ -908,93 +549,77 @@ make test
 | `make clean` | Remove generated build and test binaries |
 | `make test` | Run the complete test suite |
 | `./p2p <peer_id> <port>` | Start a peer |
-| `./tests/test_three_peer_download` | Run the three-peer download test |
-| `./tests/test_mid_transfer_dropout` | Run the dropout recovery test |
-| `./tests/test_corruption_recovery` | Run the corruption recovery test |
+| `./tests/test_three_peer_download` | Run the three-peer demo |
+| `./tests/test_mid_transfer_dropout` | Run the dropout demo |
+| `./tests/test_corruption_recovery` | Run the corruption demo |
 
 ---
 
-## 🔮 Future Improvements
+## Future Improvements
 
-Potential improvements include:
+Potential extensions include:
 
-- More scalable peer discovery.
-- A distributed hash table (DHT) or tracker integration.
+- Scalable discovery using a DHT or tracker.
 - Stronger peer authentication and message validation.
 - More comprehensive manifest synchronization.
-- Bitfield-based piece availability exchange.
-- More advanced connection management.
+- Bitfield-based availability exchange.
+- Improved connection management and retry backoff.
 - Bandwidth measurement and optimization.
-- Improved retry policies and backoff.
-- More extensive automated tests for manifest changes.
 - Larger-scale distributed testing.
 - A complete BitTorrent-style choking and unchoking mechanism.
-- More robust handling of peers sharing different files or different versions of a file.
-- Better observability, structured logging, and transfer statistics.
+- Better support for peers sharing different files or file versions.
+- Structured logging and more detailed transfer statistics.
 
-These are potential future directions, not claims that the corresponding functionality is already implemented.
+These are possible future directions, not claims that the functionality is already implemented.
 
----
-
-## ⚠️ Project Scope and Limitations
+## Project Scope and Limitations
 
 This is a **small-scale academic implementation inspired by BitTorrent**, designed to demonstrate practical concepts in computer networks and systems programming.
 
-The project focuses on:
+The project focuses on peer-to-peer TCP communication, piece-based distribution, concurrent transfers, peer discovery, manifest updates, integrity verification, recovery, and contribution tracking.
 
-- Peer-to-peer TCP communication.
-- Piece-based file distribution.
-- Concurrent downloads.
-- Peer discovery and information exchange.
-- File manifest exchange and updates.
-- Piece availability and scheduling.
-- SHA-256 integrity verification.
-- Recovery from transfer failures.
-- File reconstruction.
-- Contribution tracking.
+It is not a complete production implementation of BitTorrent. It does not claim to provide a production-scale DHT, complete tracker infrastructure, cryptographic peer identity, or the full choking and unchoking system.
 
-It is **not a complete production implementation of BitTorrent**.
-
-In particular, the project does not claim to provide a production-scale DHT, a complete tracker infrastructure, cryptographic peer identity, or the full BitTorrent choking and unchoking system.
-
-The current manifest-update design also relies on known peer records and the project's existing manifest and availability model. It should not be treated as a secure, general-purpose file-sharing service for untrusted networks.
+The manifest-update mechanism uses the existing peer and availability model and should not be treated as a secure file-sharing service for untrusted networks.
 
 ---
 
-## 👨‍💻 Team
+## Team
 
-### Peer-to-Peer File Sharing Network
+<div align="center">
+
+**Peer-to-Peer File Sharing Network**
 
 | Contributors |
 |---|
-| **Shivam Kumar Chaurasia** |
-| **Ayush Pathak** |
-| **Sagar Raj Sharma** |
-| **Aaditya Thakur** |
+| Shivam Kumar Chaurasia |
+| Ayush Pathak |
+| Sagar Raj Sharma |
+| Aaditya Thakur |
+
+</div>
+
+## Academic Project
+
+Developed to demonstrate practical concepts in:
+
+- Computer Networks
+- Peer-to-Peer Systems
+- TCP Socket Programming
+- Concurrent Programming
+- File Systems
+- Data Integrity
+- Failure Recovery
+- Network Protocol Design
+
+<div align="center">
 
 ---
 
-## 🎓 Academic Project
+### Built with C and TCP
 
-Developed as an academic project to demonstrate practical concepts in:
+If you find this project useful for learning about networking, distributed systems, or concurrent programming, consider giving the repository a star.
 
-- Computer Networks.
-- Peer-to-Peer Systems.
-- TCP Socket Programming.
-- Concurrent Programming.
-- File Systems.
-- Data Integrity.
-- Failure Recovery.
-- Network Protocol Design.
+**[View the Repository](https://github.com/shivam-ch/p2p-file-sharing)**
 
----
-
-<p align="center">
-
-## ⭐ Like the Project?
-
-If this project helped you understand P2P networking, file sharing, or concurrent TCP programming, consider giving the repository a star!
-
-**Built with C ❤️ and TCP**
-
-</p>
+</div>
