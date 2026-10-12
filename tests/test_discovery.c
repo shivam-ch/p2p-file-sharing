@@ -14,14 +14,16 @@ int main(void)
     printf("Initial peer count: %zu\n", table.count);
 
     /* Add 20 peers */
-    for (uint32_t i = 1; i <= TEST_PEER_COUNT; i++) {
+    for (uint32_t i = 1; i <= TEST_PEER_COUNT; i++)
+    {
         PeerInfo peer;
 
         peer.peer_id = i;
         snprintf(peer.ip, sizeof(peer.ip), "127.0.0.1");
         peer.port = 5000 + i;
 
-        if (peer_table_add(&table, peer) != 0) {
+        if (peer_table_add(&table, peer) != 0)
+        {
             printf("Failed to add peer %u.\n", i);
             peer_table_free(&table);
             return 1;
@@ -32,7 +34,8 @@ int main(void)
            TEST_PEER_COUNT, table.count);
 
     /* Verify all 20 peers exist */
-    if (table.count != TEST_PEER_COUNT) {
+    if (table.count != TEST_PEER_COUNT)
+    {
         printf("ERROR: Expected %d peers, found %zu.\n",
                TEST_PEER_COUNT, table.count);
         peer_table_free(&table);
@@ -42,10 +45,12 @@ int main(void)
     /* Test finding several peers */
     uint32_t test_ids[] = {1, 10, 20};
 
-    for (size_t i = 0; i < 3; i++) {
+    for (size_t i = 0; i < 3; i++)
+    {
         PeerInfo *found = peer_table_find(&table, test_ids[i]);
 
-        if (found == NULL) {
+        if (found == NULL)
+        {
             printf("Failed to find Peer %u.\n", test_ids[i]);
             peer_table_free(&table);
             return 1;
@@ -55,12 +60,12 @@ int main(void)
             "Found Peer %u: IP=%s Port=%u\n",
             found->peer_id,
             found->ip,
-            found->port
-        );
+            found->port);
     }
 
     /* Remove one peer */
-    if (peer_table_remove(&table, 10) != 0) {
+    if (peer_table_remove(&table, 10) != 0)
+    {
         printf("Failed to remove Peer 10.\n");
         peer_table_free(&table);
         return 1;
@@ -69,37 +74,38 @@ int main(void)
     printf("Peer count after removing Peer 10: %zu\n", table.count);
 
     /* Verify Peer 10 was removed */
-    if (peer_table_find(&table, 10) != NULL) {
+    if (peer_table_find(&table, 10) != NULL)
+    {
         printf("ERROR: Peer 10 was not removed correctly.\n");
         peer_table_free(&table);
         return 1;
     }
 
     /* Verify another peer still exists */
-    if (peer_table_find(&table, 20) == NULL) {
+    if (peer_table_find(&table, 20) == NULL)
+    {
         printf("ERROR: Peer 20 disappeared unexpectedly.\n");
         peer_table_free(&table);
         return 1;
     }
 
-        /* Test merging a received peer list */
+    /* Test merging a received peer list */
     PeerTable received;
     peer_table_init(&received);
 
     PeerInfo peer21 = {
         .peer_id = 21,
         .ip = "127.0.0.1",
-        .port = 5021
-    };
+        .port = 5021};
 
     PeerInfo peer20 = {
         .peer_id = 20,
         .ip = "127.0.0.1",
-        .port = 5020
-    };
+        .port = 5020};
 
     if (peer_table_add(&received, peer21) != 0 ||
-        peer_table_add(&received, peer20) != 0) {
+        peer_table_add(&received, peer20) != 0)
+    {
         printf("Failed to prepare received peer list.\n");
         peer_table_free(&received);
         peer_table_free(&table);
@@ -113,15 +119,16 @@ int main(void)
             &received,
             buffer,
             sizeof(buffer),
-            &payload_size
-        ) != 0) {
+            &payload_size) != 0)
+    {
         printf("Failed to serialize peer list.\n");
         peer_table_free(&received);
         peer_table_free(&table);
         return 1;
     }
 
-    if (merge_peer_list(&table, buffer, payload_size) != 0) {
+    if (merge_peer_list(&table, buffer, payload_size) != 0)
+    {
         printf("Failed to merge peer list.\n");
         peer_table_free(&received);
         peer_table_free(&table);
@@ -131,16 +138,83 @@ int main(void)
     /* Peer 20 already exists; only Peer 21 should be added. */
     if (table.count != 20 ||
         peer_table_find(&table, 20) == NULL ||
-        peer_table_find(&table, 21) == NULL) {
+        peer_table_find(&table, 21) == NULL)
+    {
         printf("Peer-list merge test failed.\n");
         peer_table_free(&received);
         peer_table_free(&table);
         return 1;
     }
+    /* Test duplicate peer insertion updates the existing entry. */
+    PeerInfo updated_peer;
 
+    updated_peer.peer_id = 20;
+    snprintf(updated_peer.ip, sizeof(updated_peer.ip), "127.0.0.2");
+    updated_peer.port = 6020;
+
+    size_t count_before = table.count;
+
+    if (peer_table_add(&table, updated_peer) != 0 ||
+        table.count != count_before)
+    {
+        printf("Duplicate peer insertion test failed.\n");
+        peer_table_free(&received);
+        peer_table_free(&table);
+        return 1;
+    }
+
+    PeerInfo *updated = peer_table_find(&table, 20);
+
+    if (updated == NULL ||
+        strcmp(updated->ip, "127.0.0.2") != 0 ||
+        updated->port != 6020)
+    {
+        printf("Duplicate peer update test failed.\n");
+        peer_table_free(&received);
+        peer_table_free(&table);
+        return 1;
+    }
+
+    printf("Duplicate peer update test passed.\n");
     printf("Peer-list merge test passed.\n");
 
     peer_table_free(&received);
+
+    /* Test rejection of invalid peer records. */
+    PeerInfo invalid_peer;
+
+    invalid_peer.peer_id = 0;
+    snprintf(invalid_peer.ip, sizeof(invalid_peer.ip), "127.0.0.1");
+    invalid_peer.port = 5001;
+
+    if (peer_table_add(&table, invalid_peer) == 0)
+    {
+        printf("ERROR: Peer ID 0 was accepted.\n");
+        peer_table_free(&table);
+        return 1;
+    }
+
+    invalid_peer.peer_id = 30;
+    invalid_peer.port = 0;
+
+    if (peer_table_add(&table, invalid_peer) == 0)
+    {
+        printf("ERROR: Port 0 was accepted.\n");
+        peer_table_free(&table);
+        return 1;
+    }
+
+    invalid_peer.port = 5030;
+    snprintf(invalid_peer.ip, sizeof(invalid_peer.ip), "999.999.1.1");
+
+    if (peer_table_add(&table, invalid_peer) == 0)
+    {
+        printf("ERROR: Invalid IP address was accepted.\n");
+        peer_table_free(&table);
+        return 1;
+    }
+
+    printf("Invalid peer validation tests passed.\n");
 
     printf("Dynamic N-peer discovery test passed.\n");
 

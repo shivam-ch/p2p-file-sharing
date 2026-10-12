@@ -197,7 +197,12 @@ static void *p2p_listener_thread(void *arg)
             "127.0.0.1");
 
         pthread_mutex_lock(&node->peers_mutex);
-
+        if (peer.peer_id == node->peer_id)
+        {
+            fprintf(stderr, "Ignoring connection from this node itself.\n");
+            close(peer_fd);
+            continue;
+        }
         int add_result = peer_table_add(&node->peers, peer);
 
         pthread_mutex_unlock(&node->peers_mutex);
@@ -493,7 +498,12 @@ int p2p_connect_to_peer(
         "%s",
         ip);
     pthread_mutex_lock(&node->peers_mutex);
-
+    if (remote_peer_id == node->peer_id)
+    {
+        fprintf(stderr, "Error: cannot connect to this node itself.\n");
+        close(socket_fd);
+        return -1;
+    }
     int add_result = peer_table_add(&node->peers, peer);
 
     pthread_mutex_unlock(&node->peers_mutex);

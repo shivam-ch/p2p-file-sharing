@@ -8,9 +8,35 @@
 
 #define INITIAL_PEER_CAPACITY 8
 
+#define PEER_RECORD_SIZE (sizeof(uint32_t) + sizeof(uint16_t) + 46)
+
+static int peer_is_valid(const PeerInfo *peer)
+{
+    struct in_addr ipv4;
+    struct in6_addr ipv6;
+
+    if (peer == NULL ||
+        peer->peer_id == 0 ||
+        peer->port == 0 ||
+        peer->ip[0] == '\0' ||
+        memchr(peer->ip, '\0', sizeof(peer->ip)) == NULL)
+    {
+        return 0;
+    }
+
+    if (inet_pton(AF_INET, peer->ip, &ipv4) == 1 ||
+        inet_pton(AF_INET6, peer->ip, &ipv6) == 1)
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
 void peer_table_init(PeerTable *table)
 {
-    if (table == NULL) {
+    if (table == NULL)
+    {
         return;
     }
 
@@ -21,7 +47,8 @@ void peer_table_init(PeerTable *table)
 
 void peer_table_free(PeerTable *table)
 {
-    if (table == NULL) {
+    if (table == NULL)
+    {
         return;
     }
 
@@ -34,35 +61,43 @@ void peer_table_free(PeerTable *table)
 
 int peer_table_add(
     PeerTable *table,
-    PeerInfo peer
-)
+    PeerInfo peer)
 {
     PeerInfo *new_peers;
 
-    if (table == NULL) {
+    if (table == NULL || !peer_is_valid(&peer))
+    {
         return -1;
     }
 
-    if (peer_table_find(table, peer.peer_id) != NULL) {
-        return -1;
+    PeerInfo *existing = peer_table_find(table, peer.peer_id);
+
+    if (existing != NULL)
+    {
+        *existing = peer;
+        return 0;
     }
 
-    if (table->count == table->capacity) {
+    if (table->count == table->capacity)
+    {
 
         size_t new_capacity;
 
-        if (table->capacity == 0) {
+        if (table->capacity == 0)
+        {
             new_capacity = INITIAL_PEER_CAPACITY;
-        } else {
+        }
+        else
+        {
             new_capacity = table->capacity * 2;
         }
 
         new_peers = realloc(
             table->peers,
-            new_capacity * sizeof(PeerInfo)
-        );
+            new_capacity * sizeof(PeerInfo));
 
-        if (new_peers == NULL) {
+        if (new_peers == NULL)
+        {
             return -1;
         }
 
@@ -78,20 +113,23 @@ int peer_table_add(
 
 int peer_table_remove(
     PeerTable *table,
-    uint32_t peer_id
-)
+    uint32_t peer_id)
 {
     size_t i;
 
-    if (table == NULL) {
+    if (table == NULL)
+    {
         return -1;
     }
 
-    for (i = 0; i < table->count; i++) {
+    for (i = 0; i < table->count; i++)
+    {
 
-        if (table->peers[i].peer_id == peer_id) {
+        if (table->peers[i].peer_id == peer_id)
+        {
 
-            for (; i + 1 < table->count; i++) {
+            for (; i + 1 < table->count; i++)
+            {
                 table->peers[i] = table->peers[i + 1];
             }
 
@@ -106,18 +144,20 @@ int peer_table_remove(
 
 PeerInfo *peer_table_find(
     PeerTable *table,
-    uint32_t peer_id
-)
+    uint32_t peer_id)
 {
     size_t i;
 
-    if (table == NULL) {
+    if (table == NULL)
+    {
         return NULL;
     }
 
-    for (i = 0; i < table->count; i++) {
+    for (i = 0; i < table->count; i++)
+    {
 
-        if (table->peers[i].peer_id == peer_id) {
+        if (table->peers[i].peer_id == peer_id)
+        {
             return &table->peers[i];
         }
     }
@@ -128,25 +168,33 @@ int serialize_peer_list(
     const PeerTable *table,
     unsigned char *buffer,
     uint32_t buffer_size,
-    uint32_t *output_size
-)
+    uint32_t *output_size)
 {
     uint32_t peer_count;
     uint32_t required_size;
     unsigned char *cursor;
 
-    if (table == NULL || buffer == NULL || output_size == NULL) {
+    if (table == NULL || buffer == NULL || output_size == NULL)
+    {
         return -1;
     }
 
     peer_count = (uint32_t)table->count;
+    if (buffer_size < sizeof(uint32_t))
+    {
+        return -1;
+    }
+    if (peer_count >
+        (buffer_size - sizeof(uint32_t)) / PEER_RECORD_SIZE)
+    {
+        return -1;
+    }
 
     required_size = sizeof(uint32_t) +
-                    peer_count * (sizeof(uint32_t) +
-                                  sizeof(uint16_t) +
-                                  46);
+                    peer_count * PEER_RECORD_SIZE;
 
-    if (buffer_size < required_size) {
+    if (buffer_size < required_size)
+    {
         return -1;
     }
 
@@ -157,12 +205,12 @@ int serialize_peer_list(
     memcpy(
         cursor,
         &network_peer_count,
-        sizeof(network_peer_count)
-    );
+        sizeof(network_peer_count));
 
     cursor += sizeof(network_peer_count);
 
-    for (size_t i = 0; i < table->count; i++) {
+    for (size_t i = 0; i < table->count; i++)
+    {
 
         uint32_t network_peer_id =
             htonl(table->peers[i].peer_id);
@@ -173,24 +221,21 @@ int serialize_peer_list(
         memcpy(
             cursor,
             &network_peer_id,
-            sizeof(network_peer_id)
-        );
+            sizeof(network_peer_id));
 
         cursor += sizeof(network_peer_id);
 
         memcpy(
             cursor,
             &network_port,
-            sizeof(network_port)
-        );
+            sizeof(network_port));
 
         cursor += sizeof(network_port);
 
         memcpy(
             cursor,
             table->peers[i].ip,
-            46
-        );
+            46);
 
         cursor += 46;
     }
@@ -202,26 +247,26 @@ int serialize_peer_list(
 int deserialize_peer_list(
     PeerTable *table,
     const unsigned char *buffer,
-    uint32_t buffer_size
-)
+    uint32_t buffer_size)
 {
     uint32_t peer_count;
     uint32_t required_size;
     const unsigned char *cursor;
 
-    if (table == NULL || buffer == NULL) {
+    if (table == NULL || buffer == NULL)
+    {
         return -1;
     }
 
-    if (buffer_size < sizeof(uint32_t)) {
+    if (buffer_size < sizeof(uint32_t))
+    {
         return -1;
     }
 
     memcpy(
         &peer_count,
         buffer,
-        sizeof(peer_count)
-    );
+        sizeof(peer_count));
 
     peer_count = ntohl(peer_count);
 
@@ -230,7 +275,8 @@ int deserialize_peer_list(
                                   sizeof(uint16_t) +
                                   46);
 
-    if (buffer_size != required_size) {
+    if (buffer_size != required_size)
+    {
         return -1;
     }
 
@@ -238,7 +284,8 @@ int deserialize_peer_list(
 
     cursor = buffer + sizeof(uint32_t);
 
-    for (uint32_t i = 0; i < peer_count; i++) {
+    for (uint32_t i = 0; i < peer_count; i++)
+    {
 
         PeerInfo peer;
 
@@ -248,16 +295,14 @@ int deserialize_peer_list(
         memcpy(
             &network_peer_id,
             cursor,
-            sizeof(network_peer_id)
-        );
+            sizeof(network_peer_id));
 
         cursor += sizeof(network_peer_id);
 
         memcpy(
             &network_port,
             cursor,
-            sizeof(network_port)
-        );
+            sizeof(network_port));
 
         cursor += sizeof(network_port);
 
@@ -267,14 +312,14 @@ int deserialize_peer_list(
         memcpy(
             peer.ip,
             cursor,
-            46
-        );
+            46);
 
         peer.ip[45] = '\0';
 
         cursor += 46;
 
-        if (peer_table_add(table, peer) != 0) {
+        if (peer_table_add(table, peer) != 0)
+        {
             peer_table_free(table);
             return -1;
         }
@@ -285,26 +330,26 @@ int deserialize_peer_list(
 int merge_peer_list(
     PeerTable *table,
     const unsigned char *buffer,
-    uint32_t buffer_size
-)
+    uint32_t buffer_size)
 {
     uint32_t peer_count;
     uint32_t required_size;
     const unsigned char *cursor;
 
-    if (table == NULL || buffer == NULL) {
+    if (table == NULL || buffer == NULL)
+    {
         return -1;
     }
 
-    if (buffer_size < sizeof(uint32_t)) {
+    if (buffer_size < sizeof(uint32_t))
+    {
         return -1;
     }
 
     memcpy(
         &peer_count,
         buffer,
-        sizeof(peer_count)
-    );
+        sizeof(peer_count));
 
     peer_count = ntohl(peer_count);
 
@@ -313,13 +358,15 @@ int merge_peer_list(
                                   sizeof(uint16_t) +
                                   46);
 
-    if (buffer_size != required_size) {
+    if (buffer_size != required_size)
+    {
         return -1;
     }
 
     cursor = buffer + sizeof(uint32_t);
 
-    for (uint32_t i = 0; i < peer_count; i++) {
+    for (uint32_t i = 0; i < peer_count; i++)
+    {
 
         PeerInfo peer;
 
@@ -329,16 +376,14 @@ int merge_peer_list(
         memcpy(
             &network_peer_id,
             cursor,
-            sizeof(network_peer_id)
-        );
+            sizeof(network_peer_id));
 
         cursor += sizeof(network_peer_id);
 
         memcpy(
             &network_port,
             cursor,
-            sizeof(network_port)
-        );
+            sizeof(network_port));
 
         cursor += sizeof(network_port);
 
@@ -348,15 +393,16 @@ int merge_peer_list(
         memcpy(
             peer.ip,
             cursor,
-            46
-        );
+            46);
 
         peer.ip[45] = '\0';
 
         cursor += 46;
 
-        if (peer_table_find(table, peer.peer_id) == NULL) {
-            if (peer_table_add(table, peer) != 0) {
+        if (peer_table_find(table, peer.peer_id) == NULL)
+        {
+            if (peer_table_add(table, peer) != 0)
+            {
                 return -1;
             }
         }
@@ -366,13 +412,13 @@ int merge_peer_list(
 }
 int send_peer_list(
     int socket_fd,
-    const PeerTable *table
-)
+    const PeerTable *table)
 {
     unsigned char buffer[MAX_PAYLOAD_SIZE];
     uint32_t payload_size;
 
-    if (table == NULL) {
+    if (table == NULL)
+    {
         return -1;
     }
 
@@ -380,8 +426,8 @@ int send_peer_list(
             table,
             buffer,
             sizeof(buffer),
-            &payload_size
-        ) != 0) {
+            &payload_size) != 0)
+    {
         return -1;
     }
 
@@ -389,8 +435,7 @@ int send_peer_list(
         socket_fd,
         MSG_PEER_LIST,
         buffer,
-        payload_size
-    );
+        payload_size);
 }
 
 int receive_peer_list(int socket_fd, PeerTable *table)
@@ -399,7 +444,8 @@ int receive_peer_list(int socket_fd, PeerTable *table)
     MessageType message_type;
     uint32_t payload_size;
 
-    if (table == NULL) {
+    if (table == NULL)
+    {
         return -1;
     }
 
@@ -408,12 +454,13 @@ int receive_peer_list(int socket_fd, PeerTable *table)
             &message_type,
             buffer,
             sizeof(buffer),
-            &payload_size
-        ) != 0) {
+            &payload_size) != 0)
+    {
         return -1;
     }
 
-    if (message_type != MSG_PEER_LIST) {
+    if (message_type != MSG_PEER_LIST)
+    {
         return -1;
     }
 

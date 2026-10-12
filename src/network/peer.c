@@ -13,7 +13,8 @@ int start_listener(uint16_t port)
 
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (server_fd < 0) {
+    if (server_fd < 0)
+    {
         perror("socket");
         return -1;
     }
@@ -25,8 +26,8 @@ int start_listener(uint16_t port)
             SOL_SOCKET,
             SO_REUSEADDR,
             &reuse,
-            sizeof(reuse)
-        ) < 0) {
+            sizeof(reuse)) < 0)
+    {
         perror("setsockopt SO_REUSEADDR");
         close(server_fd);
         return -1;
@@ -40,14 +41,15 @@ int start_listener(uint16_t port)
     if (bind(
             server_fd,
             (struct sockaddr *)&server_address,
-            sizeof(server_address)
-        ) < 0) {
+            sizeof(server_address)) < 0)
+    {
         perror("bind");
         close(server_fd);
         return -1;
     }
 
-    if (listen(server_fd, 10) < 0) {
+    if (listen(server_fd, 10) < 0)
+    {
         perror("listen");
         close(server_fd);
         return -1;
@@ -63,7 +65,8 @@ int connect_to_peer(const char *ip, uint16_t port)
 
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (socket_fd < 0) {
+    if (socket_fd < 0)
+    {
         perror("socket");
         return -1;
     }
@@ -73,7 +76,8 @@ int connect_to_peer(const char *ip, uint16_t port)
     peer_address.sin_family = AF_INET;
     peer_address.sin_port = htons(port);
 
-    if (inet_pton(AF_INET, ip, &peer_address.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, ip, &peer_address.sin_addr) <= 0)
+    {
         perror("inet_pton");
         close(socket_fd);
         return -1;
@@ -82,8 +86,8 @@ int connect_to_peer(const char *ip, uint16_t port)
     if (connect(
             socket_fd,
             (struct sockaddr *)&peer_address,
-            sizeof(peer_address)
-        ) < 0) {
+            sizeof(peer_address)) < 0)
+    {
         perror("connect");
         close(socket_fd);
         return -1;
@@ -94,18 +98,16 @@ int connect_to_peer(const char *ip, uint16_t port)
 
 int accept_peer(int server_fd)
 {
-    int peer_fd;
     struct sockaddr_in peer_address;
     socklen_t address_length = sizeof(peer_address);
 
-    peer_fd = accept(
+    int peer_fd = accept(
         server_fd,
         (struct sockaddr *)&peer_address,
-        &address_length
-    );
+        &address_length);
 
-    if (peer_fd < 0) {
-        perror("accept");
+    if (peer_fd < 0)
+    {
         return -1;
     }
 

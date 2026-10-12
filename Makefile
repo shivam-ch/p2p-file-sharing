@@ -112,7 +112,9 @@ test: core-tests
 		test_tcp_concurrent_transfer \
 		test_peer_aware_download \
 		test_recovery_transfer \
-		test_corruption_recovery; \
+		test_corruption_recovery \
+		test_discovery \
+        test_discovery_serialization; \
 	do \
 		echo "========================================"; \
 		echo "Running $$test"; \
@@ -123,7 +125,7 @@ test: core-tests
 	@echo "ALL TESTS PASSED"
 	@echo "========================================"
 
-core-tests: test_mid_transfer_dropout test_three_peer_download test_protocol test_file_io test_piece test_piece_block test_transfer test_recovery test_timeout test_fairness test_availability test_tcp_transfer test_tcp_concurrent_transfer test_peer_aware_download test_recovery_transfer test_corruption_recovery
+core-tests: test_mid_transfer_dropout test_three_peer_download test_protocol test_file_io test_piece test_piece_block test_transfer test_recovery test_timeout test_fairness test_availability test_tcp_transfer test_tcp_concurrent_transfer test_peer_aware_download test_recovery_transfer test_corruption_recovery test_discovery test_discovery_serialization
 
 test_protocol:
 	$(CC) $(CFLAGS) \

@@ -1,17 +1,120 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <errno.h>
+#include <limits.h>
 #include <unistd.h>
 #include <string.h>
 #include "../transfer/transfer.h"
 #include "../network/peer.h"
 #include <sys/stat.h>
-#include <string.h>
 #include "p2p.h"
 #include "../storage/file_splitter.h"
 #include "../storage/piece_scheduler.h"
-#include "../storage/piece_scheduler.h"
 #define MAX_CONCURRENT_DOWNLOADS 4
+
+static int parse_file_path(
+    const char *command,
+    const char *keyword,
+    char *path,
+    size_t path_size)
+{
+    size_t keyword_len = strlen(keyword);
+
+    if (strncmp(command, keyword, keyword_len) != 0 ||
+        command[keyword_len] != ' ')
+    {
+        return 0;
+    }
+
+    const char *p = command + keyword_len;
+
+    while (*p == ' ')
+    {
+        p++;
+    }
+
+    if (*p == '\0' || *p == '\n')
+    {
+        return -1;
+    }
+
+    size_t len = 0;
+
+    if (*p == '"')
+    {
+        p++;
+
+        while (*p != '\0' && *p != '"' && *p != '\n')
+        {
+            if (len + 1 >= path_size)
+            {
+                return -1;
+            }
+
+            path[len++] = *p++;
+        }
+
+        if (*p != '"')
+        {
+            return -1;
+        }
+
+        p++;
+    }
+    else
+    {
+        while (*p != '\0' && *p != '\n' && *p != ' ' &&
+               *p != '\t')
+        {
+            if (len + 1 >= path_size)
+            {
+                return -1;
+            }
+
+            path[len++] = *p++;
+        }
+    }
+
+    path[len] = '\0';
+
+    while (*p == ' ' || *p == '\t')
+    {
+        p++;
+    }
+
+    if (len == 0 || (*p != '\0' && *p != '\n'))
+    {
+        return -1;
+    }
+
+    return 1;
+}
+
+static void print_help(void)
+{
+    printf("\n");
+    printf("========== P2P FILE SHARING COMMANDS ==========\n");
+    printf("help / ?                 Show available commands\n");
+    printf("status                   Show local node information\n");
+    printf("connect <ip> <port>      Connect to another peer\n");
+    printf("peers                    List known peers\n");
+    printf("share <file_path>        Split and share a local file\n");
+    printf("download <output_path>   Download and reconstruct a file\n");
+    printf("fairness                 Show peer contribution statistics\n");
+    printf("exit                     Save state and shut down\n");
+    printf("===============================================\n");
+
+    printf("\nExamples:\n");
+    printf("  connect 127.0.0.1 5002\n");
+    printf("  share ./files/document.pdf\n");
+    printf("  download ./downloads/document.pdf\n");
+
+    printf("\nNotes:\n");
+    printf("  - Connect to a peer before downloading its shared file.\n");
+    printf("  - Downloads use concurrent piece transfers and verification.\n");
+    printf("  - Use quotes for file paths containing spaces.\n\n");
+}
 
 typedef struct
 {
@@ -65,16 +168,63 @@ static void *peer_download_worker(void *arg)
     return NULL;
 }
 
+static int parse_positive_number(
+    const char *text,
+    unsigned long max_value,
+    unsigned long *result)
+{
+    char *end;
+    unsigned long value;
+
+    if (text == NULL || *text == '\0' || *text == '-')
+    {
+        return -1;
+    }
+
+    errno = 0;
+    value = strtoul(text, &end, 10);
+
+    if (errno == ERANGE ||
+        end == text ||
+        *end != '\0' ||
+        value == 0 ||
+        value > max_value)
+    {
+        return -1;
+    }
+
+    *result = value;
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
+
     if (argc != 3)
     {
-        printf("Usage: %s <peer_id> <port>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <peer_id> <port>\n", argv[0]);
         return 1;
     }
 
-    uint32_t peer_id = (uint32_t)strtoul(argv[1], NULL, 10);
-    uint16_t port = (uint16_t)strtoul(argv[2], NULL, 10);
+    unsigned long parsed_peer_id;
+    unsigned long parsed_port;
+
+    if (parse_positive_number(argv[1], UINT32_MAX,
+                              &parsed_peer_id) != 0)
+    {
+        fprintf(stderr, "Error: peer ID must be a positive integer.\n");
+        return 1;
+    }
+
+    if (parse_positive_number(argv[2], 65535,
+                              &parsed_port) != 0)
+    {
+        fprintf(stderr, "Error: port must be an integer from 1 to 65535.\n");
+        return 1;
+    }
+
+    uint32_t peer_id = (uint32_t)parsed_peer_id;
+    uint16_t port = (uint16_t)parsed_port;
 
     P2PNode node;
 
@@ -115,18 +265,24 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("P2P node started.\n");
-    printf("Peer ID: %u\n", peer_id);
-    printf("Port: %u\n", port);
-    printf("Pieces directory: %s\n", node.pieces_dir);
-    printf("Waiting for peers...\n");
+    printf("\n");
+    printf("================================================\n");
+    printf("          P2P FILE SHARING NETWORK              \n");
+    printf("================================================\n");
+    printf("  Status          : ONLINE\n");
+    printf("  Peer ID         : %u\n", peer_id);
+    printf("  Listening port  : %u\n", port);
+    printf("  Storage folder  : %s\n", node.pieces_dir);
+    printf("================================================\n");
+    printf("Type 'help' to see available commands.\n");
+    printf("================================================\n\n");
 
     char command[256];
 
     while (node.running)
     {
 
-        printf("> ");
+        printf("p2p> ");
         fflush(stdout);
 
         if (fgets(command, sizeof(command), stdin) == NULL)
@@ -138,6 +294,47 @@ int main(int argc, char *argv[])
             strcmp(command, "exit") == 0)
         {
             break;
+        }
+        if (strcmp(command, "help\n") == 0 ||
+            strcmp(command, "help") == 0 ||
+            strcmp(command, "?\n") == 0 ||
+            strcmp(command, "?") == 0)
+        {
+            print_help();
+            continue;
+        }
+        if (strcmp(command, "status\n") == 0 ||
+            strcmp(command, "status") == 0)
+        {
+            printf("\n========== NODE STATUS ==========\n");
+            printf("Node state        : %s\n",
+                   node.running ? "ONLINE" : "OFFLINE");
+            printf("Peer ID           : %u\n", node.peer_id);
+            printf("Listening port    : %u\n", node.port);
+            printf("Storage directory : %s\n", node.pieces_dir);
+
+            pthread_mutex_lock(&node.peers_mutex);
+            printf("Known peers       : %zu\n", node.peers.count);
+            pthread_mutex_unlock(&node.peers_mutex);
+
+            pthread_mutex_lock(&node.availability_mutex);
+            printf("Remote pieces     : %zu\n", node.remote_piece_count);
+            pthread_mutex_unlock(&node.availability_mutex);
+
+            printf("Shared file       : %s\n",
+                   node.shared_file_path[0] != '\0'
+                       ? node.shared_file_path
+                       : "None");
+
+            printf("Local pieces      : %zu\n", node.piece_count);
+
+            pthread_mutex_lock(&node.fairness_mutex);
+            printf("Tracked peers     : %zu\n",
+                   node.fairness.peer_count);
+            pthread_mutex_unlock(&node.fairness_mutex);
+
+            printf("=================================\n\n");
+            continue;
         }
 
         char ip[46];
@@ -169,6 +366,13 @@ int main(int argc, char *argv[])
         if (strcmp(command, "peers\n") == 0 ||
             strcmp(command, "peers") == 0)
         {
+            pthread_mutex_lock(&node.peers_mutex);
+
+            printf("\n");
+            printf("=============== KNOWN PEERS ===============\n");
+            printf("%-12s %-20s %-8s\n",
+                   "Peer ID", "IP Address", "Port");
+            printf("-------------------------------------------\n");
 
             if (node.peers.count == 0)
             {
@@ -176,16 +380,20 @@ int main(int argc, char *argv[])
             }
             else
             {
-                printf("Known peers (%zu):\n", node.peers.count);
-
                 for (size_t i = 0; i < node.peers.count; i++)
                 {
-                    printf("  Peer ID: %u | Address: %s:%u\n",
+                    printf("%-12u %-20s %-8u\n",
                            node.peers.peers[i].peer_id,
                            node.peers.peers[i].ip,
                            node.peers.peers[i].port);
                 }
             }
+
+            printf("-------------------------------------------\n");
+            printf("Total known peers: %zu\n", node.peers.count);
+            printf("===========================================\n\n");
+
+            pthread_mutex_unlock(&node.peers_mutex);
             continue;
         }
 
@@ -238,7 +446,10 @@ int main(int argc, char *argv[])
 
         char file_path[256];
 
-        if (sscanf(command, "share %255s %c", file_path, &extra) == 1)
+        int share_result = parse_file_path(
+            command, "share", file_path, sizeof(file_path));
+
+        if (share_result == 1)
         {
             PieceInfo *new_pieces = NULL;
             size_t new_count = 0;
@@ -278,10 +489,29 @@ int main(int argc, char *argv[])
 
             continue;
         }
+        if (strcmp(command, "share\n") == 0 ||
+            strcmp(command, "share") == 0)
+        {
+            printf("Missing file path. Example: share \"my documents/report.pdf\"\n");
+            continue;
+        }
+        if (share_result == -1)
+        {
+            printf("Invalid share path. Use: share <path> or share \"<path with spaces>\"\n");
+            continue;
+        }
 
         char output_path[256];
 
-        if (sscanf(command, "download %255s %c", output_path, &extra) == 1)
+        int download_result = parse_file_path(
+            command, "download", output_path, sizeof(output_path));
+        if (strcmp(command, "download\n") == 0 ||
+            strcmp(command, "download") == 0)
+        {
+            printf("Missing output path. Example: download \"my downloads/report.pdf\"\n");
+            continue;
+        }
+        if (download_result == 1)
         {
             pthread_mutex_lock(&node.availability_mutex);
 
@@ -303,10 +533,17 @@ int main(int argc, char *argv[])
 
             pthread_mutex_unlock(&node.availability_mutex);
 
-            if (manifest_copy == NULL || count == 0)
+            if (count == 0)
             {
-                printf("No manifest available or memory allocation failed.\n");
+                printf("No file manifest available.\n");
+                printf("Connect to a peer that has shared a file, then retry.\n");
                 free(manifest_copy);
+                continue;
+            }
+
+            if (manifest_copy == NULL)
+            {
+                printf("Error: Could not allocate memory for the file manifest.\n");
                 continue;
             }
 
@@ -362,6 +599,7 @@ int main(int argc, char *argv[])
             }
 
             size_t initialized = 0;
+            size_t completed_pieces = 0;
 
             for (size_t i = 0; i < count; i++)
             {
@@ -443,17 +681,28 @@ int main(int argc, char *argv[])
                     if (jobs[index].result != 0)
                     {
                         printf(
-                            "Failed to download piece %u.\n",
+                            "ERROR: Piece %u could not be downloaded or verified.\n",
                             pieces[index].info.piece_id);
                         failed = 1;
                     }
                     else
                     {
+                        completed_pieces++;
+
                         printf(
                             "Piece %u downloaded and verified.\n",
                             pieces[index].info.piece_id);
                     }
                 }
+
+                double progress = (double)completed_pieces * 100.0 /
+                                  (double)count;
+
+                printf(
+                    "Download progress: %zu/%zu pieces (%.1f%%)\n\n",
+                    completed_pieces,
+                    count,
+                    progress);
             }
 
             for (size_t i = 0; i < initialized; i++)
@@ -466,28 +715,44 @@ int main(int argc, char *argv[])
 
             if (failed)
             {
-                printf("Download incomplete. You can retry the command.\n");
+                printf("Download incomplete: %zu of %zu pieces verified.\n",
+                       completed_pieces, count);
+                printf("Check peer connectivity and availability, then retry.\n");
                 free(manifest_copy);
                 continue;
             }
 
             if (reconstruct_file(
                     output_path,
-                    download_dir,
+                    node.pieces_dir,
                     manifest_copy,
                     count) != 0)
             {
-                printf("Failed to reconstruct the output file.\n");
+                printf("ERROR: Downloaded pieces are available, but reconstruction failed.\n");
+                printf("Check the output path, piece files, and manifest order.\n");
                 free(manifest_copy);
                 continue;
             }
 
-            printf("Download complete: %s\n", output_path);
+            printf("\n");
+            printf("========================================\n");
+            printf("          DOWNLOAD SUCCESSFUL           \n");
+            printf("========================================\n");
+            printf("File       : %s\n", output_path);
+            printf("Pieces     : %zu/%zu verified\n",
+                   completed_pieces, count);
+            printf("Progress   : 100%%\n");
+            printf("========================================\n\n");
             free(manifest_copy);
             continue;
         }
+        if (download_result == -1)
+        {
+            printf("Invalid download path. Use: download <path> or download \"<path with spaces>\"\n");
+            continue;
+        }
 
-        printf("Unknown command. Use: connect <ip> <port>, peers, or exit\n");
+        printf("Unknown command. Type 'help' to see available commands.\n");
     }
 
     pthread_mutex_lock(&node.fairness_mutex);
