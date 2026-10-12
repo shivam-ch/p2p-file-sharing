@@ -60,6 +60,77 @@ static void *p2p_upload_thread(void *arg)
 
     return NULL;
 }
+static int receive_manifest_update(
+    P2PNode *node,
+    int socket_fd)
+{
+    unsigned char buffer[4];
+    MessageType type;
+    uint32_t payload_size;
+    uint32_t network_peer_id;
+    uint32_t remote_peer_id;
+
+    if (node == NULL || socket_fd < 0)
+    {
+        return -1;
+    }
+
+    if (receive_message(
+            socket_fd,
+            &type,
+            buffer,
+            sizeof(buffer),
+            &payload_size) != 0)
+    {
+        return -1;
+    }
+
+    if (type != MSG_MANIFEST_UPDATE ||
+        payload_size != sizeof(uint32_t))
+    {
+        return -1;
+    }
+
+    memcpy(&network_peer_id, buffer, sizeof(network_peer_id));
+    remote_peer_id = ntohl(network_peer_id);
+
+    if (remote_peer_id == 0 ||
+        remote_peer_id == node->peer_id)
+    {
+        return -1;
+    }
+
+    pthread_mutex_lock(&node->peers_mutex);
+
+    PeerInfo *known_peer =
+        peer_table_find(&node->peers, remote_peer_id);
+
+    int peer_known = known_peer != NULL;
+
+    pthread_mutex_unlock(&node->peers_mutex);
+
+    if (!peer_known)
+    {
+        fprintf(stderr,
+                "Manifest update from unknown peer %u rejected.\n",
+                remote_peer_id);
+        return -1;
+    }
+
+    if (receive_file_manifest(
+            node,
+            socket_fd,
+            remote_peer_id) != 0)
+    {
+        fprintf(stderr,
+                "Manifest update from peer %u failed.\n",
+                remote_peer_id);
+        return -1;
+    }
+
+    printf("Manifest updated from peer %u.\n", remote_peer_id);
+    return 0;
+}
 
 static void *p2p_listener_thread(void *arg)
 {
@@ -95,6 +166,16 @@ static void *p2p_listener_thread(void *arg)
         }
 
         uint32_t message_type = ntohl(network_type);
+        if (message_type == MSG_MANIFEST_UPDATE)
+        {
+            if (receive_manifest_update(node, peer_fd) != 0)
+            {
+                fprintf(stderr, "Failed to process manifest update.\n");
+            }
+
+            close(peer_fd);
+            continue;
+        }
 
         if (message_type == MSG_PIECE_REQUEST)
         {
@@ -695,6 +776,100 @@ static int send_file_manifest(P2PNode *node, int socket_fd)
         buffer,
         (uint32_t)position);
 }
+int p2p_announce_manifest(P2PNode *node)
+{
+    if (node == NULL)
+    {
+        return -1;
+    }
+
+    PeerInfo *peer_snapshot = NULL;
+    size_t peer_count = 0;
+
+    pthread_mutex_lock(&node->peers_mutex);
+
+    peer_count = node->peers.count;
+
+    if (peer_count > 0)
+    {
+        peer_snapshot = malloc(peer_count * sizeof(*peer_snapshot));
+
+        if (peer_snapshot != NULL)
+        {
+            memcpy(
+                peer_snapshot,
+                node->peers.peers,
+                peer_count * sizeof(*peer_snapshot));
+        }
+    }
+
+    pthread_mutex_unlock(&node->peers_mutex);
+
+    if (peer_count > 0 && peer_snapshot == NULL)
+    {
+        return -1;
+    }
+
+    int failures = 0;
+
+    for (size_t i = 0; i < peer_count; i++)
+    {
+        PeerInfo *peer = &peer_snapshot[i];
+
+        if (peer->peer_id == node->peer_id ||
+            peer->port == 0 ||
+            peer->ip[0] == '\0')
+        {
+            continue;
+        }
+
+        int socket_fd = connect_to_peer(peer->ip, peer->port);
+
+        if (socket_fd < 0)
+        {
+            fprintf(
+                stderr,
+                "Could not notify peer %u.\n",
+                peer->peer_id);
+            failures++;
+            continue;
+        }
+
+        uint32_t network_peer_id = htonl(node->peer_id);
+
+        int result = send_message(
+            socket_fd,
+            MSG_MANIFEST_UPDATE,
+            &network_peer_id,
+            sizeof(network_peer_id));
+
+        if (result == 0)
+        {
+            result = send_file_manifest(node, socket_fd);
+        }
+
+        close(socket_fd);
+
+        if (result != 0)
+        {
+            fprintf(
+                stderr,
+                "Manifest update to peer %u failed.\n",
+                peer->peer_id);
+            failures++;
+        }
+        else
+        {
+            printf(
+                "Manifest update sent to peer %u.\n",
+                peer->peer_id);
+        }
+    }
+
+    free(peer_snapshot);
+
+    return failures == 0 ? 0 : -1;
+}
 
 static int receive_file_manifest(
     P2PNode *node,
@@ -801,13 +976,70 @@ static int receive_file_manifest(
 
         pthread_mutex_unlock(&node->availability_mutex);
     }
-    pthread_mutex_lock(&node->availability_mutex);
-    free_pieces(node->remote_pieces);
 
+    pthread_mutex_lock(&node->availability_mutex);
+
+    /* Remove this peer's old piece mappings. */
+    for (size_t i = 0; i < node->availability.piece_count; i++)
+    {
+        PieceAvailability *available_piece = &node->availability.pieces[i];
+
+        for (size_t j = 0; j < available_piece->peer_count;)
+        {
+            if (available_piece->peer_ids[j] == remote_peer_id)
+            {
+                if (availability_remove_peer(
+                        &node->availability,
+                        available_piece->piece_id,
+                        remote_peer_id) != 0)
+                {
+                    pthread_mutex_unlock(&node->availability_mutex);
+                    free_pieces(pieces);
+                    return -1;
+                }
+            }
+            else
+            {
+                j++;
+            }
+        }
+    }
+
+    /* Add the mappings from the new manifest. */
+    for (uint32_t i = 0; i < count; i++)
+    {
+        if (availability_find_piece(
+                &node->availability,
+                pieces[i].piece_id) == NULL)
+        {
+            if (availability_add_piece(
+                    &node->availability,
+                    pieces[i].piece_id) != 0)
+            {
+                pthread_mutex_unlock(&node->availability_mutex);
+                free_pieces(pieces);
+                return -1;
+            }
+        }
+
+        if (availability_add_peer(
+                &node->availability,
+                pieces[i].piece_id,
+                remote_peer_id) != 0)
+        {
+            pthread_mutex_unlock(&node->availability_mutex);
+            free_pieces(pieces);
+            return -1;
+        }
+    }
+
+    free_pieces(node->remote_pieces);
     node->remote_pieces = pieces;
     node->remote_piece_count = count;
     node->remote_peer_id = remote_peer_id;
+
     pthread_mutex_unlock(&node->availability_mutex);
+
     printf(
         "Received manifest from peer %u: %u pieces\n",
         remote_peer_id,

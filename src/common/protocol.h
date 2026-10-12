@@ -14,7 +14,8 @@ typedef enum {
     MSG_PING,
     MSG_PONG,
     MSG_DISCONNECT,
-    MSG_FILE_MANIFEST
+    MSG_FILE_MANIFEST,
+    MSG_MANIFEST_UPDATE
 } MessageType;
 
 typedef struct {

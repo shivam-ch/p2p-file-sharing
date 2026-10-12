@@ -73,5 +73,6 @@ int p2p_exchange_peer_list(
     P2PNode *node,
     int socket_fd,
     uint32_t remote_peer_id);
+int p2p_announce_manifest(P2PNode *node);
 
 #endif

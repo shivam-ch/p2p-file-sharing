@@ -486,6 +486,10 @@ int main(int argc, char *argv[])
                     node.pieces[i].piece_id,
                     (unsigned long long)node.pieces[i].size);
             }
+            if (p2p_announce_manifest(&node) != 0)
+            {
+                printf("Warning: Some peers could not be notified.\n");
+            }
 
             continue;
         }
